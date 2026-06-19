@@ -115,18 +115,24 @@ async function renderPriceMyBakes(state = {}) {
       state.ingredients = (savedRecipe.ingredients || []).map(i => ({ ...i }));
       state.supplies = (savedRecipe.supplies || []).map(s => ({ ...s }));
       state.listedPrice = savedRecipe.listedPrice ?? (menuItem ? menuItem.price : 0);
+      state.batchSize = savedRecipe.batchSize ?? (menuItem && menuItem.batchSize != null ? menuItem.batchSize : 1);
+      state.batchUnit = savedRecipe.batchUnit || (menuItem && (menuItem.batchUnit || menuItem.soldBy)) || 'individual';
     } else {
       state.store = 'walmart';
       state.ingredients = [];
       state.supplies = [];
       state.listedPrice = menuItem ? menuItem.price : 0;
+      state.batchSize = menuItem && menuItem.batchSize != null ? menuItem.batchSize : 1;
+      state.batchUnit = (menuItem && (menuItem.batchUnit || menuItem.soldBy)) || 'individual';
     }
     state.initialized = true;
     Router.state.priceMyBakes = state;
   }
 
-  const title = menuItem ? menuItem.name : 'New recipe';
-  const subtext = menuItem ? `Pricing: ${menuItem.emoji || ''} ${menuItem.name}` : 'Recipe & profit';
+  const typeLabel = menuItem && menuItem.productType ? productTypeLabel(menuItem.productType) : '';
+  const subtext = menuItem
+    ? (typeLabel ? `${menuItem.emoji || ''} ${menuItem.name} · ${typeLabel}` : `${menuItem.emoji || ''} ${menuItem.name}`)
+    : 'Recipe & profit';
 
   return `
     <div class="screen">
@@ -140,10 +146,93 @@ async function renderPriceMyBakes(state = {}) {
         <div class="pmb-top-spacer"></div>
       </div>
       <div class="scroll-content pmb-scroll">
+        ${menuItem ? renderPmbBatchSection(state) : ''}
         ${renderPmbStoreSection(state)}
         ${renderPmbIngredientsSection(state)}
         ${renderPmbSuppliesSection(state)}
         ${renderPmbSummaryCard(state, baker, menuItem)}
+        ${menuItem ? renderPmbPerUnitCard(state, baker) : ''}
+      </div>
+    </div>
+  `;
+}
+
+function renderPmbBatchSection(state) {
+  return `
+    <div class="pmb-section pmb-batch-section">
+      <div class="pmb-section-label">Batch size</div>
+      <div class="pmb-batch-row">
+        <span class="pmb-batch-text">This recipe makes</span>
+        <input type="number" step="0.5" min="0.5" class="pmb-batch-input"
+          value="${state.batchSize}"
+          oninput="onPmbBatchSizeInput(event)"
+          aria-label="Batch quantity" />
+        <select class="pmb-batch-unit" onchange="onPmbBatchUnitChange(event)" aria-label="Batch unit">
+          <option value="dozen" ${state.batchUnit === 'dozen' ? 'selected' : ''}>dozen</option>
+          <option value="halfDozen" ${state.batchUnit === 'halfDozen' ? 'selected' : ''}>half dozen</option>
+          <option value="individual" ${state.batchUnit === 'individual' ? 'selected' : ''}>individual</option>
+        </select>
+      </div>
+    </div>
+  `;
+}
+
+function piecesPerSellingUnit(unit) {
+  if (unit === 'dozen') return 12;
+  if (unit === 'halfDozen') return 6;
+  return 1;
+}
+
+function pmbPerUnitNumbers(state, baker) {
+  const totalCost = totalFoodCost(state) + totalSuppliesCost(state);
+  const batchSize = Number(state.batchSize) || 1;
+  const piecesPerBatch = batchSize * piecesPerSellingUnit(state.batchUnit);
+  const costPerPiece = piecesPerBatch > 0 ? totalCost / piecesPerBatch : 0;
+  const costPerSellingUnit = batchSize > 0 ? totalCost / batchSize : 0;
+  const feeRate = baker && baker.feeRate != null ? baker.feeRate : 0.05;
+  const targetMargin = 0.6;
+  const divisor = 1 - feeRate - targetMargin;
+  const suggested = divisor > 0 ? costPerSellingUnit / divisor : 0;
+  const price = Number(state.listedPrice) || 0;
+  const profit = price * (1 - feeRate) - costPerSellingUnit;
+  const margin = price > 0 ? (profit / price) * 100 : 0;
+  return { costPerPiece, costPerSellingUnit, suggested, profit, margin };
+}
+
+function pmbUnitLabel(unit) {
+  if (unit === 'dozen') return 'dozen';
+  if (unit === 'halfDozen') return 'half dozen';
+  return 'piece';
+}
+
+function renderPmbPerUnitCard(state, baker) {
+  const n = pmbPerUnitNumbers(state, baker);
+  const unitLabel = pmbUnitLabel(state.batchUnit);
+  const showPiece = state.batchUnit !== 'individual';
+  return `
+    <div class="pmb-perunit-card">
+      <div class="pmb-perunit-title">Per-unit breakdown</div>
+      ${showPiece ? `
+        <div class="pmb-summary-line">
+          <span>Cost per piece</span>
+          <span id="pmb-cost-per-piece">${fmt(n.costPerPiece)}</span>
+        </div>
+      ` : ''}
+      <div class="pmb-summary-line">
+        <span>Cost per ${unitLabel}</span>
+        <span id="pmb-cost-per-unit">${fmt(n.costPerSellingUnit)}</span>
+      </div>
+      <div class="pmb-summary-line pmb-suggested-line">
+        <span>Suggested price <span class="pmb-suggested-note">at 60% margin</span></span>
+        <span id="pmb-suggested-price">${fmt(n.suggested)}</span>
+      </div>
+      <div class="pmb-summary-line">
+        <span>Profit per ${unitLabel}</span>
+        <span id="pmb-profit-per-unit">${fmt(n.profit)}</span>
+      </div>
+      <div class="pmb-summary-line">
+        <span>Margin</span>
+        <span id="pmb-margin-per-unit">${Math.round(n.margin)}%</span>
       </div>
     </div>
   `;
@@ -451,6 +540,18 @@ function onPmbListedPriceInput(e) {
   pmbRecomputeSummary();
 }
 
+function onPmbBatchSizeInput(e) {
+  const state = Router.state.priceMyBakes || {};
+  state.batchSize = parseFloat(e.target.value) || 0;
+  pmbRecomputeSummary();
+}
+
+function onPmbBatchUnitChange(e) {
+  const state = Router.state.priceMyBakes || {};
+  state.batchUnit = e.target.value;
+  Router.refresh({ keepScroll: true });
+}
+
 function pmbRecomputeIngredientCost(idx) {
   const state = Router.state.priceMyBakes || {};
   const ing = state.ingredients && state.ingredients[idx];
@@ -485,6 +586,15 @@ function pmbRecomputeSummary() {
   setPmbText('pmb-summary-fee', `−${fmt(fee)}`);
   setPmbText('pmb-summary-takehome', fmt(takeHome));
   setPmbText('pmb-summary-margin', `Profit margin: ${Math.round(margin)}%`);
+
+  if (document.getElementById('pmb-cost-per-unit')) {
+    const n = pmbPerUnitNumbers(state, baker);
+    setPmbText('pmb-cost-per-piece', fmt(n.costPerPiece));
+    setPmbText('pmb-cost-per-unit', fmt(n.costPerSellingUnit));
+    setPmbText('pmb-suggested-price', fmt(n.suggested));
+    setPmbText('pmb-profit-per-unit', fmt(n.profit));
+    setPmbText('pmb-margin-per-unit', `${Math.round(n.margin)}%`);
+  }
 }
 
 function setPmbText(id, text) {

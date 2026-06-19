@@ -86,13 +86,117 @@ const Actions = {
   'messages:open': () => Router.navigate('messages'),
   'nav:back': () => Router.back(),
 
-  'menu:open': ({ id }) => {
+  'menu:add': () => {
+    Router.state.menuItem = { itemId: null };
+    Router.navigate('menuItem');
+  },
+  'menu:edit': ({ id }) => {
+    Router.state.menuItem = { itemId: id };
+    Router.navigate('menuItem');
+  },
+  'menu:priceItem': ({ id }) => {
     Router.state.priceMyBakes = { itemId: id };
     Router.navigate('priceMyBakes');
   },
-  'menu:add': () => {
-    Router.state.priceMyBakes = { itemId: null };
-    Router.navigate('priceMyBakes');
+
+  'menuItem:setType': ({ value }) => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    s.productType = value;
+    const t = PRODUCT_TYPES.find(x => x.id === value);
+    if (t && (!s.emoji || s.emoji === '🧁')) s.emoji = t.emoji;
+    if (value === 'cupcakes' && s.soldBy === 'individual') s.soldBy = null;
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:setSoldBy': ({ value }) => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    s.soldBy = value;
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:toggleSize': ({ value }) => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    s.typeFields.sizes = Array.isArray(s.typeFields.sizes) ? s.typeFields.sizes : [];
+    const i = s.typeFields.sizes.indexOf(value);
+    if (i >= 0) s.typeFields.sizes.splice(i, 1);
+    else s.typeFields.sizes.push(value);
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:setLayersPerTier': ({ value }) => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    s.typeFields.layersPerTier = parseInt(value, 10);
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:setTiers': ({ value }) => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    s.typeFields.tiers = parseInt(value, 10);
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:toggleTag': ({ value }) => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    s.occasionTags = Array.isArray(s.occasionTags) ? s.occasionTags : [];
+    const i = s.occasionTags.indexOf(value);
+    if (i >= 0) s.occasionTags.splice(i, 1);
+    else s.occasionTags.push(value);
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:addAddon': () => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    s.addOns = s.addOns || [];
+    s.addOns.push({ name: '', price: 0 });
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:removeAddon': ({ id }) => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    s.addOns.splice(parseInt(id, 10), 1);
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:save': async () => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    if (!s.name.trim() || !s.productType) {
+      alert('Item needs a name and a product type.');
+      return;
+    }
+    const payload = {
+      name: s.name.trim(),
+      emoji: s.emoji,
+      price: Number(s.price) || 0,
+      productType: s.productType,
+      soldBy: s.soldBy,
+      occasionTags: s.occasionTags || [],
+      addOns: (s.addOns || []).filter(a => a.name && a.name.trim()),
+      typeFields: s.typeFields || {},
+      batchSize: s.batchSize ?? null,
+      batchUnit: s.batchUnit || s.soldBy || null,
+      available: true
+    };
+    try {
+      if (s.itemId) await Api.updateMenuItem(s.itemId, payload);
+      else await Api.createMenuItem(payload);
+      Router.state.menuItem = null;
+      Router.navigate('menu');
+    } catch (e) { alert(e.message); }
+  },
+  'menuItem:delete': async () => {
+    const s = Router.state.menuItem;
+    if (!s || !s.itemId) return;
+    if (!confirm('Remove this item from your menu?')) return;
+    try {
+      await Api.deleteMenuItem(s.itemId);
+      Router.state.menuItem = null;
+      Router.navigate('menu');
+    } catch (e) { alert(e.message); }
+  },
+  'menuItem:cancel': () => {
+    Router.state.menuItem = null;
+    Router.navigate('menu');
   },
 
   'pmb:selectStore': ({ value }) => {
@@ -241,7 +345,9 @@ const Actions = {
         listedPrice: s.listedPrice,
         ingredients: s.ingredients,
         supplies: s.supplies,
-        totalCost
+        totalCost,
+        batchSize: s.batchSize,
+        batchUnit: s.batchUnit
       });
       el.textContent = 'Saved ✓';
       setTimeout(() => { el.textContent = original; el.disabled = false; }, 1400);
@@ -508,6 +614,7 @@ const SCREENS = {
   messages: renderMessages,
   conversation: renderConversation,
   menu: renderMenu,
+  menuItem: renderMenuItem,
   priceMyBakes: renderPriceMyBakes,
   reviews: renderReviews,
   profile: renderProfile

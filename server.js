@@ -325,9 +325,8 @@ app.post('/api/availability/slots', requireAuth, async (req, res, next) => {
     }
     const rec = await airtable.create('Availability', {
       'Baker Email': baker.email,
-      'Pickup Date': date,
-      'Slots Available': slotsAvailable,
-      'Slots Filled': 0
+      'Available Date': date,
+      'Slots Available': slotsAvailable
     });
     res.json({ ok: true, slot: slotFromRecord(rec) });
   } catch (e) { next(e); }
@@ -438,7 +437,18 @@ app.post('/api/menu', requireAuth, async (req, res, next) => {
       category: req.body?.category || 'Other',
       available: req.body?.available !== false
     };
-    if (MODE === 'mock') return res.json({ ok: true, item: mock.addMenuItem(fields) });
+    if (MODE === 'mock') {
+      return res.json({ ok: true, item: mock.addMenuItem({
+        ...fields,
+        productType: req.body?.productType,
+        soldBy: req.body?.soldBy,
+        occasionTags: req.body?.occasionTags,
+        addOns: req.body?.addOns,
+        typeFields: req.body?.typeFields,
+        batchSize: req.body?.batchSize,
+        batchUnit: req.body?.batchUnit
+      }) });
+    }
     const rec = await airtable.create('Menu Items', {
       'Baker Email': baker.email,
       'Item Name': fields.name,
@@ -578,30 +588,23 @@ app.post('/api/baker/custom-ingredients', requireAuth, async (req, res, next) =>
 app.get('/api/baker/supplies', requireAuth, async (req, res, next) => {
   try {
     await currentBaker(req);
-    if (MODE === 'mock') return res.json({ supplies: mock.getSupplies() });
-    res.json({ supplies: [] });
+    res.json({ supplies: mock.getSupplies() });
   } catch (e) { next(e); }
 });
 
 app.post('/api/baker/supplies', requireAuth, async (req, res, next) => {
   try {
     await currentBaker(req);
-    if (MODE === 'mock') {
-      const item = mock.upsertSupply(req.body || {});
-      if (!item) return res.status(400).json({ error: 'Supply name is required.' });
-      return res.json({ ok: true, supply: item });
-    }
-    res.json({ ok: true, supply: null });
+    const item = mock.upsertSupply(req.body || {});
+    if (!item) return res.status(400).json({ error: 'Supply name is required.' });
+    res.json({ ok: true, supply: item });
   } catch (e) { next(e); }
 });
 
 app.delete('/api/baker/supplies/:id', requireAuth, async (req, res, next) => {
   try {
     await currentBaker(req);
-    if (MODE === 'mock') {
-      mock.removeSupply(req.params.id);
-      return res.json({ ok: true });
-    }
+    mock.removeSupply(req.params.id);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

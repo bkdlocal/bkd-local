@@ -387,9 +387,40 @@ function markRead(id) {
 }
 
 let menuItems = [
-  { id: 'mi1', name: 'French Macaron Box', emoji: '🌸', price: 42, recipeCost: 11.50, category: 'Cookies', available: true },
-  { id: 'mi2', name: 'Custom Birthday Cake', emoji: '🎂', price: 85, recipeCost: null,  category: 'Cakes',   available: true },
-  { id: 'mi3', name: 'Decorated Sugar Cookies', emoji: '🍪', price: 48, recipeCost: 14.00, category: 'Cookies', available: true },
+  {
+    id: 'mi1', name: 'French Macaron Box', emoji: '🌸', price: 42, recipeCost: 11.50,
+    category: 'Cookies', available: true,
+    productType: 'macarons', soldBy: 'dozen',
+    occasionTags: ['birthday', 'wedding'],
+    addOns: [],
+    typeFields: { flavors: 'Vanilla bean, raspberry, pistachio, salted caramel' },
+    batchSize: 12, batchUnit: 'dozen'
+  },
+  {
+    id: 'mi2', name: 'Custom Birthday Cake', emoji: '🎂', price: 85, recipeCost: null,
+    category: 'Cakes', available: true,
+    productType: 'cakes', soldBy: null,
+    occasionTags: ['birthday'],
+    addOns: [
+      { name: 'Fondant details', price: 15 },
+      { name: 'Edible image', price: 8 }
+    ],
+    typeFields: { sizes: ['8"'], layersPerTier: 2, tiers: 1, finish: 'Buttercream' },
+    batchSize: 1, batchUnit: 'individual'
+  },
+  {
+    id: 'mi3', name: 'Decorated Sugar Cookies', emoji: '🍪', price: 48, recipeCost: 14.00,
+    category: 'Cookies', available: true,
+    productType: 'sugarCookies', soldBy: 'dozen',
+    occasionTags: ['birthday', 'holiday', 'baby shower'],
+    addOns: [
+      { name: 'Printed image', price: 4 },
+      { name: 'Gold paint accent', price: 3 },
+      { name: 'Piped name', price: 2 }
+    ],
+    typeFields: { maxColors: 5 },
+    batchSize: 12, batchUnit: 'dozen'
+  },
   { id: 'mi4', name: 'Cinnamon Rolls', emoji: '🥐', price: 24, recipeCost: 6.25, category: 'Pastry', available: true },
   { id: 'mi5', name: 'Lemon Tart', emoji: '🍋', price: 38, recipeCost: null, category: 'Pastry', available: false },
   { id: 'mi6', name: 'Banana Bread', emoji: '🍞', price: 14, recipeCost: 3.75, category: 'Pastry', available: true }
@@ -412,7 +443,14 @@ function addMenuItem(fields) {
     price: Number(fields.price) || 0,
     recipeCost: fields.recipeCost != null ? Number(fields.recipeCost) : null,
     category: fields.category || 'Other',
-    available: fields.available !== false
+    available: fields.available !== false,
+    productType: fields.productType || null,
+    soldBy: fields.soldBy || null,
+    occasionTags: Array.isArray(fields.occasionTags) ? fields.occasionTags : [],
+    addOns: Array.isArray(fields.addOns) ? fields.addOns : [],
+    typeFields: fields.typeFields && typeof fields.typeFields === 'object' ? fields.typeFields : {},
+    batchSize: fields.batchSize != null && fields.batchSize !== '' ? Number(fields.batchSize) : null,
+    batchUnit: fields.batchUnit || null
   };
   menuItems.push(item);
   return { ...item };
@@ -427,6 +465,13 @@ function updateMenuItem(id, fields) {
   if (fields.recipeCost !== undefined) m.recipeCost = fields.recipeCost == null ? null : Number(fields.recipeCost);
   if (fields.category != null) m.category = fields.category;
   if (fields.available != null) m.available = !!fields.available;
+  if (fields.productType !== undefined) m.productType = fields.productType || null;
+  if (fields.soldBy !== undefined) m.soldBy = fields.soldBy || null;
+  if (fields.occasionTags !== undefined) m.occasionTags = Array.isArray(fields.occasionTags) ? fields.occasionTags : [];
+  if (fields.addOns !== undefined) m.addOns = Array.isArray(fields.addOns) ? fields.addOns : [];
+  if (fields.typeFields !== undefined) m.typeFields = fields.typeFields && typeof fields.typeFields === 'object' ? fields.typeFields : {};
+  if (fields.batchSize !== undefined) m.batchSize = fields.batchSize == null || fields.batchSize === '' ? null : Number(fields.batchSize);
+  if (fields.batchUnit !== undefined) m.batchUnit = fields.batchUnit || null;
   return { ...m };
 }
 
@@ -581,6 +626,8 @@ function saveRecipe(menuItemId, payload) {
     store: String(payload.store || 'walmart'),
     listedPrice: Number(payload.listedPrice) || 0,
     totalCost: Number(payload.totalCost) || 0,
+    batchSize: payload.batchSize != null && payload.batchSize !== '' ? Number(payload.batchSize) : null,
+    batchUnit: payload.batchUnit || null,
     ingredients: Array.isArray(payload.ingredients) ? payload.ingredients.map(i => ({
       catalogId: String(i.catalogId),
       custom: !!i.custom,
@@ -594,7 +641,12 @@ function saveRecipe(menuItemId, payload) {
   };
   recipes[menuItemId] = recipe;
   const item = menuItems.find(x => x.id === menuItemId);
-  if (item) item.recipeCost = recipe.totalCost;
+  if (item) {
+    item.recipeCost = recipe.totalCost;
+    if (recipe.listedPrice > 0) item.price = recipe.listedPrice;
+    if (recipe.batchSize != null) item.batchSize = recipe.batchSize;
+    if (recipe.batchUnit) item.batchUnit = recipe.batchUnit;
+  }
   return { ...recipe };
 }
 

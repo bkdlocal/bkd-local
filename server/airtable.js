@@ -166,7 +166,7 @@ function bakerFromRecord(rec) {
     bio: f['Bio'] || null,
     productTypes: f['Product Types'] || null,
     specialtyTags: f['Specialty Tags'] || null,
-    acceptingOrders: f['Accepting Orders'] !== false,
+    acceptingOrders: f['Accepting Orders'] === true,
     faq: faqFromRecord(f)
   };
 }
@@ -181,7 +181,7 @@ function slotFromRecord(rec) {
     : parseInt(f['Slots Filled'], 10) || 0;
   return {
     id: rec.id,
-    date: f['Pickup Date'] || null,
+    date: f['Available Date'] || null,
     slotsAvailable: available,
     slotsFilled: filled
   };

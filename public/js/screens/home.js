@@ -1,9 +1,10 @@
 async function renderHome() {
-  const [baker, stats, earnings, orders] = await Promise.all([
+  const [baker, stats, earnings, orders, menuItems] = await Promise.all([
     Api.getBaker(),
     Api.getDashboardStats(),
     Api.getMonthlyEarnings(),
-    Api.getRecentOrders()
+    Api.getRecentOrders(),
+    Api.getMenu().catch(() => [])
   ]);
 
   const net = computeNet(earnings.gross, baker.feeRate);
@@ -75,8 +76,8 @@ async function renderHome() {
           <button class="quick-card" type="button" data-screen="menu">
             <div class="quick-icon qi-plum">🍽️</div>
             <div>
-              <div class="quick-card-label">Menu & Pricing</div>
-              <div class="quick-card-sub">4 items</div>
+              <div class="quick-card-label">My Menu</div>
+              <div class="quick-card-sub">${menuItems.length} item${menuItems.length === 1 ? '' : 's'}</div>
             </div>
           </button>
           <button class="quick-card" type="button" data-screen="reviews">
