@@ -1,0 +1,6 @@
+node_modules/
+.env
+.env.local
+.session-secret
+.DS_Store
+*.log
