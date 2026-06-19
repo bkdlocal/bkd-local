@@ -453,7 +453,6 @@ app.post('/api/menu', requireAuth, async (req, res, next) => {
       'Baker Email': baker.email,
       'Item Name': fields.name,
       'Price': fields.price,
-      'Recipe Cost': fields.recipeCost,
       'Category': fields.category,
       'Available': fields.available
     });
@@ -477,7 +476,6 @@ app.patch('/api/menu/:id', requireAuth, async (req, res, next) => {
     const fields = {};
     if (body.name != null) fields['Item Name'] = body.name;
     if (body.price != null) fields['Price'] = Number(body.price);
-    if (body.recipeCost !== undefined) fields['Recipe Cost'] = body.recipeCost == null ? null : Number(body.recipeCost);
     if (body.category != null) fields['Category'] = body.category;
     if (body.available != null) fields['Available'] = !!body.available;
     const updated = await airtable.update('Menu Items', req.params.id, fields);
