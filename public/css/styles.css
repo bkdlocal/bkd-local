@@ -2585,19 +2585,46 @@ body {
   font-family: inherit;
 }
 
-.mi-addon-list { display: flex; flex-direction: column; gap: 8px; }
+.mi-addon-list { display: flex; flex-direction: column; gap: 12px; }
 .mi-addon-row {
+  display: grid;
+  grid-template-columns: 1fr 28px;
+  align-items: start;
+  gap: 8px;
+  padding: 10px;
+  background: var(--blush-white);
+  border: 1px solid var(--petal);
+  border-radius: 10px;
+}
+.mi-addon-name { width: 100%; min-width: 0; }
+.mi-addon-price-block {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mi-addon-price-label {
+  font-size: 11px;
+  color: var(--mauve);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+.mi-addon-unit-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mi-addon-price-input-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
-.mi-addon-name { flex: 1; min-width: 0; }
 .mi-addon-dollar {
   color: var(--mauve);
   font-size: 13px;
   margin-left: 2px;
 }
-.mi-addon-price { width: 80px; flex: 0 0 auto; }
+.mi-addon-price { width: 100px; flex: 0 0 auto; }
 .mi-addon-remove {
   flex: 0 0 auto;
   width: 28px;

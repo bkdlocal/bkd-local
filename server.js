@@ -452,7 +452,6 @@ app.post('/api/menu', requireAuth, async (req, res, next) => {
     const rec = await airtable.create('Menu Items', {
       'Baker Email': baker.email,
       'Item Name': fields.name,
-      'Emoji': fields.emoji,
       'Price': fields.price,
       'Recipe Cost': fields.recipeCost,
       'Category': fields.category,
@@ -477,7 +476,6 @@ app.patch('/api/menu/:id', requireAuth, async (req, res, next) => {
     }
     const fields = {};
     if (body.name != null) fields['Item Name'] = body.name;
-    if (body.emoji != null) fields['Emoji'] = body.emoji;
     if (body.price != null) fields['Price'] = Number(body.price);
     if (body.recipeCost !== undefined) fields['Recipe Cost'] = body.recipeCost == null ? null : Number(body.recipeCost);
     if (body.category != null) fields['Category'] = body.category;

@@ -190,21 +190,37 @@ function renderAddOnsList(state) {
     <div class="mi-addon-list">
       ${state.addOns.length === 0
         ? '<div class="pmb-empty">No add-ons yet.</div>'
-        : state.addOns.map((a, idx) => `
+        : state.addOns.map((a, idx) => {
+            const unit = a.priceUnit === 'per_set' ? 'per_set' : 'per_cookie';
+            return `
             <div class="mi-addon-row">
               <input type="text" class="pmb-input mi-addon-name"
                 value="${escapeMiAttr(a.name || '')}"
                 oninput="onMiAddonNameInput(event, ${idx})"
                 placeholder="e.g., Printed image" />
-              <span class="mi-addon-dollar">$</span>
-              <input type="number" step="0.01" min="0" class="pmb-input mi-addon-price"
-                value="${a.price ?? ''}"
-                oninput="onMiAddonPriceInput(event, ${idx})"
-                placeholder="0.00" />
               <button type="button" class="mi-addon-remove"
                 data-action="menuItem:removeAddon" data-id="${idx}" aria-label="Remove">×</button>
+              <div class="mi-addon-price-block">
+                <div class="mi-addon-price-label">Price is per:</div>
+                <div class="mi-addon-unit-row">
+                  <button type="button"
+                    class="pill ${unit === 'per_cookie' ? 'pill-active' : 'pill-inactive'}"
+                    data-action="menuItem:setAddonUnit" data-id="${idx}" data-value="per_cookie">per cookie</button>
+                  <button type="button"
+                    class="pill ${unit === 'per_set' ? 'pill-active' : 'pill-inactive'}"
+                    data-action="menuItem:setAddonUnit" data-id="${idx}" data-value="per_set">per set/order</button>
+                </div>
+                <div class="mi-addon-price-input-row">
+                  <span class="mi-addon-dollar">$</span>
+                  <input type="number" step="0.01" min="0" class="pmb-input mi-addon-price"
+                    value="${a.price ?? ''}"
+                    oninput="onMiAddonPriceInput(event, ${idx})"
+                    placeholder="0.00" />
+                </div>
+              </div>
             </div>
-          `).join('')}
+          `;
+          }).join('')}
     </div>
     <button type="button" class="pmb-custom-link" data-action="menuItem:addAddon">+ Add an add-on</button>
   `;

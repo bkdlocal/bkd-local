@@ -148,13 +148,22 @@ const Actions = {
     const s = Router.state.menuItem;
     if (!s) return;
     s.addOns = s.addOns || [];
-    s.addOns.push({ name: '', price: 0 });
+    s.addOns.push({ name: '', price: 0, priceUnit: 'per_cookie' });
     Router.refresh({ keepScroll: true });
   },
   'menuItem:removeAddon': ({ id }) => {
     const s = Router.state.menuItem;
     if (!s) return;
     s.addOns.splice(parseInt(id, 10), 1);
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:setAddonUnit': ({ id, el }) => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    const idx = parseInt(id, 10);
+    if (!s.addOns || !s.addOns[idx]) return;
+    const value = el.dataset.value === 'per_set' ? 'per_set' : 'per_cookie';
+    s.addOns[idx].priceUnit = value;
     Router.refresh({ keepScroll: true });
   },
   'menuItem:save': async () => {
@@ -171,7 +180,13 @@ const Actions = {
       productType: s.productType,
       soldBy: s.soldBy,
       occasionTags: s.occasionTags || [],
-      addOns: (s.addOns || []).filter(a => a.name && a.name.trim()),
+      addOns: (s.addOns || [])
+        .filter(a => a.name && a.name.trim())
+        .map(a => ({
+          name: a.name.trim(),
+          price: Number(a.price) || 0,
+          priceUnit: a.priceUnit === 'per_set' ? 'per_set' : 'per_cookie'
+        })),
       typeFields: s.typeFields || {},
       batchSize: s.batchSize ?? null,
       batchUnit: s.batchUnit || s.soldBy || null,
