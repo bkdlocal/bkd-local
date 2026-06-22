@@ -63,12 +63,24 @@ function publicBakerFromMock(b) {
 function publicMenuItemFromRecord(rec) {
   const f = rec.fields || {};
   return {
+    id: rec.id,
     name: f['Item Name'] || '',
     description: f['Description'] || null,
-    price: typeof f['Price'] === 'number' ? f['Price'] : (parseFloat(f['Price']) || null),
+    price: typeof f['Price'] === 'number' ? f['Price'] : (parseFloat(f['Price']) || 0),
     category: f['Category'] || null,
     coverPhoto: f['Cover Photo URL'] || null,
-    emoji: null
+    emoji: null,
+    // Live Menu Items has no sold-per or add-ons columns yet (graceful degradation).
+    soldPer: null,
+    addOns: []
+  };
+}
+
+function normalizeAddOn(a) {
+  return {
+    name: a.name,
+    price: Number(a.price) || 0,
+    unit: a.priceUnit === 'per_cookie' ? 'per_cookie' : 'per_set'
   };
 }
 
@@ -77,12 +89,15 @@ function publicMenuItemFromMock(m) {
   const soldBy = m.soldBy ? m.soldBy.charAt(0).toUpperCase() + m.soldBy.slice(1) : null;
   const description = [soldBy, detail].filter(Boolean).join(' · ') || null;
   return {
+    id: m.id,
     name: m.name || '',
     description,
-    price: typeof m.price === 'number' ? m.price : (parseFloat(m.price) || null),
+    price: typeof m.price === 'number' ? m.price : (parseFloat(m.price) || 0),
     category: m.category || null,
     coverPhoto: null,
-    emoji: m.emoji || null
+    emoji: m.emoji || null,
+    soldPer: m.soldBy || null,
+    addOns: Array.isArray(m.addOns) ? m.addOns.map(normalizeAddOn) : []
   };
 }
 

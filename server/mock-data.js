@@ -402,8 +402,8 @@ let menuItems = [
     productType: 'cakes', soldBy: null,
     occasionTags: ['birthday'],
     addOns: [
-      { name: 'Fondant details', price: 15 },
-      { name: 'Edible image', price: 8 }
+      { name: 'Fondant details', price: 15, priceUnit: 'per_set' },
+      { name: 'Edible image', price: 8, priceUnit: 'per_set' }
     ],
     typeFields: { sizes: ['8"'], layersPerTier: 2, tiers: 1, finish: 'Buttercream' },
     batchSize: 1, batchUnit: 'individual'
@@ -414,9 +414,9 @@ let menuItems = [
     productType: 'sugarCookies', soldBy: 'dozen',
     occasionTags: ['birthday', 'holiday', 'baby shower'],
     addOns: [
-      { name: 'Printed image', price: 4 },
-      { name: 'Gold paint accent', price: 3 },
-      { name: 'Piped name', price: 2 }
+      { name: 'Printed image', price: 4, priceUnit: 'per_cookie' },
+      { name: 'Gold paint accent', price: 3, priceUnit: 'per_cookie' },
+      { name: 'Piped name', price: 2, priceUnit: 'per_set' }
     ],
     typeFields: { maxColors: 5 },
     batchSize: 12, batchUnit: 'dozen'

@@ -31,6 +31,7 @@ const emailService = require('./server/email');
 const { CustomerStore, customerPublic } = require('./server/customers');
 const publicSite = require('./server/public-site');
 const publicData = require('./server/public-data');
+const orderFlow = require('./server/order-flow');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = getSessionSecret();
@@ -47,6 +48,7 @@ const MODE = airtable ? 'airtable' : 'mock';
 
 const customers = new CustomerStore(airtable);
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
+const SERVICE_FEE = 1.5; // Phase 1 flat customer service fee, shown on the order request.
 
 const app = express();
 app.set('trust proxy', true);
@@ -1011,6 +1013,140 @@ app.get('/bakers/:id', async (req, res, next) => {
       loadPublicReviews(baker.email)
     ]);
     res.type('html').send(publicSite.renderProfile({ baker, menu, reviews }));
+  } catch (e) { next(e); }
+});
+
+// ── Customer order request flow (spec 6.4) ──────────────────────────────────
+
+async function loadMenuItemForBaker(baker, itemId) {
+  if (!itemId) return null;
+  if (MODE === 'mock') {
+    const m = mock.getMenuItem(itemId);
+    return m ? publicData.publicMenuItemFromMock(m) : null;
+  }
+  const rec = await airtable.findById('Menu Items', itemId);
+  if (!rec || normEmail(rec.fields['Baker Email']) !== baker.email) return null;
+  if (rec.fields['Available'] === false) return null;
+  return publicData.publicMenuItemFromRecord(rec);
+}
+
+// Pickup dates this baker has open capacity on, today or later (string compare).
+async function loadBakerOpenDates(baker) {
+  const today = new Date().toISOString().slice(0, 10);
+  const out = new Set();
+  if (MODE === 'mock') {
+    mock.getSlots().forEach(s => {
+      const d = String(s.date || '').slice(0, 10);
+      if (d && d >= today && slotHasOpenCapacity(s.slotsAvailable, s.slotsFilled)) out.add(d);
+    });
+  } else {
+    const rows = await airtable.list('Availability', {
+      filterByFormula: `LOWER(TRIM({Baker Email})) = '${escapeFormula(baker.email)}'`
+    });
+    rows.forEach(rec => {
+      const d = String(rec.fields['Available Date'] || '').slice(0, 10);
+      if (d && d >= today && slotHasOpenCapacity(rec.fields['Slots Available'], rec.fields['Slots Filled'])) out.add(d);
+    });
+  }
+  return [...out].sort();
+}
+
+// Order Status "Pending" may not exist on the single-select yet (the MCP can't
+// add select options). Prefer Pending; fall back to New if Airtable rejects it.
+async function createOrderRecord(fields) {
+  if (MODE === 'mock') {
+    console.log('[order:mock] would create order:', JSON.stringify(fields));
+    return { id: 'mock-order' };
+  }
+  try {
+    return await airtable.create('Orders', { ...fields, 'Order Status': 'Pending' });
+  } catch (e) {
+    if (e && e.status === 422) {
+      console.warn('[order] "Pending" Order Status not available; using "New". Add a Pending option to enable it.');
+      return await airtable.create('Orders', { ...fields, 'Order Status': 'New' });
+    }
+    throw e;
+  }
+}
+
+app.get('/login', (req, res) => {
+  res.type('html').send(orderFlow.renderAuth({ mode: 'login', redirect: req.query.redirect ? String(req.query.redirect) : '' }));
+});
+
+app.get('/signup', (req, res) => {
+  res.type('html').send(orderFlow.renderAuth({ mode: 'signup', redirect: req.query.redirect ? String(req.query.redirect) : '' }));
+});
+
+app.get('/order/new', async (req, res, next) => {
+  try {
+    if (!req.customer) {
+      return res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl));
+    }
+    const baker = await loadPublicBakerById(String(req.query.baker || ''));
+    if (!baker) return res.status(404).type('html').send(publicSite.renderNotFound());
+    const item = await loadMenuItemForBaker(baker, String(req.query.item || ''));
+    if (!item) return res.status(404).type('html').send(publicSite.renderNotFound());
+    const availableDates = await loadBakerOpenDates(baker);
+    res.type('html').send(orderFlow.renderOrderFlow({ baker, item, availableDates, serviceFee: SERVICE_FEE }));
+  } catch (e) { next(e); }
+});
+
+app.post('/api/orders/request', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const customer = await customers.findByEmail(req.customer.email);
+    if (!customer) return res.status(404).json({ error: 'Account not found.' });
+    const b = req.body || {};
+
+    const baker = await loadPublicBakerById(String(b.bakerId || ''));
+    if (!baker) return res.status(404).json({ error: 'Baker not found.' });
+    const item = await loadMenuItemForBaker(baker, String(b.itemId || ''));
+    if (!item) return res.status(404).json({ error: 'Item not found.' });
+
+    const quantity = Math.max(1, parseInt(b.quantity, 10) || 0);
+    const pickupDate = String(b.pickupDate || '');
+    const openDates = await loadBakerOpenDates(baker);
+    if (!openDates.includes(pickupDate)) {
+      return res.status(400).json({ error: 'Please choose an available pickup date.' });
+    }
+
+    // Recompute add-ons + total server-side from the item definition. Never trust client prices.
+    const defByName = new Map(item.addOns.map(a => [a.name, a]));
+    const addOns = [];
+    let addOnTotal = 0;
+    for (const sel of (Array.isArray(b.addOns) ? b.addOns : [])) {
+      const def = defByName.get(sel && sel.name);
+      if (!def) continue;
+      let qty = parseInt(sel.qty, 10) || 0;
+      if (qty <= 0) continue;
+      qty = def.unit === 'per_cookie' ? Math.min(qty, quantity) : 1;
+      const cost = def.unit === 'per_cookie' ? qty * def.price : def.price;
+      addOnTotal += cost;
+      addOns.push({ name: def.name, unit: def.unit, price: def.price, qty });
+    }
+    const subtotal = quantity * Number(item.price) + addOnTotal;
+    const orderTotal = Math.round((subtotal + SERVICE_FEE) * 100) / 100;
+
+    const customerName = [customer.fields['First Name'], customer.fields['Last Name']]
+      .filter(Boolean).join(' ').trim();
+    const notes = b.notes ? String(b.notes).trim() : '';
+
+    await createOrderRecord({
+      'Order ID': 'ORD-' + Date.now().toString(36).toUpperCase(),
+      'Baker Name': baker.businessName,
+      'Baker Email': baker.email,
+      'Customer Email': req.customer.email,
+      'Customer Name': customerName || undefined,
+      'Customer Phone': customer.fields['Phone'] || undefined,
+      'Menu Item': item.name,
+      'Add-ons Selected': JSON.stringify(addOns),
+      'Order Total': orderTotal,
+      'Pick Up Date': pickupDate,
+      'Notes': notes || undefined
+    });
+
+    // Baker notification: no channel is wired yet (email is stubbed). Log for now.
+    console.log(`[order] request for ${baker.email} from ${req.customer.email}: ${item.name} x${quantity}, pickup ${pickupDate}, total $${orderTotal}`);
+    res.json({ ok: true, orderTotal });
   } catch (e) { next(e); }
 });
 

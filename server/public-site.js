@@ -240,7 +240,7 @@ function renderDirectory({ bakers, cities, types, filters, total }) {
   });
 }
 
-function menuSection(menu) {
+function menuSection(menu, bakerId) {
   if (!menu || !menu.length) return '';
   const rows = menu.map(m => `
     <div class="menu-row">
@@ -248,7 +248,10 @@ function menuSection(menu) {
         <div class="menu-name">${esc(m.name)}</div>
         ${m.description ? `<div class="menu-sub">${esc(m.description)}</div>` : ''}
       </div>
-      ${m.price != null ? `<div class="menu-price">$${esc(Number(m.price).toFixed(0))}</div>` : ''}
+      <div class="menu-right">
+        ${m.price != null ? `<div class="menu-price">$${esc(Number(m.price).toFixed(0))}</div>` : ''}
+        ${m.id ? `<a class="menu-request" href="/order/new?baker=${esc(bakerId)}&amp;item=${esc(m.id)}">Request</a>` : ''}
+      </div>
     </div>`).join('');
   return `<section class="profile-section"><div class="section-label">Menu</div><div class="menu-rows">${rows}</div></section>`;
 }
@@ -282,6 +285,11 @@ function renderProfile({ baker, menu, reviews }) {
   const ig = instagramUrl(baker.instagram);
   const bannerStyle = baker.photo ? ` style="background-image:url('${esc(baker.photo)}')"` : '';
   const loc = [shortCity(baker.city) ? `${esc(baker.city)}` : '', 'Pickup available'].filter(Boolean).join(' · ');
+  const firstItem = (menu && menu[0]) ? menu[0].id : null;
+  const requestHref = firstItem
+    ? `/order/new?baker=${esc(baker.id)}&amp;item=${esc(firstItem)}`
+    : (ig || '#');
+  const requestExternal = !firstItem && ig;
   const body = `
   <nav class="crumbs"><a href="/bakers">← All bakers</a></nav>
   <article class="profile-card">
@@ -293,11 +301,11 @@ function renderProfile({ baker, menu, reviews }) {
       </div>
       <div class="profile-location">📍 ${esc(loc)}</div>
       ${baker.bio ? `<p class="profile-bio">${esc(baker.bio)}</p>` : ''}
-      ${menuSection(menu)}
+      ${menuSection(menu, baker.id)}
       ${portfolioSection(baker.gallery)}
       ${reviewsSection(reviews)}
       <div class="profile-actions">
-        <a class="btn btn-primary btn-block" href="${ig ? esc(ig) : '#'}"${ig ? ' target="_blank" rel="noopener"' : ''}>Request an order</a>
+        <a class="btn btn-primary btn-block" href="${requestHref}"${requestExternal ? ' target="_blank" rel="noopener"' : ''}>Request an order</a>
         ${ig ? `<a class="btn btn-outline" href="${esc(ig)}" target="_blank" rel="noopener">Message</a>` : ''}
       </div>
       <div class="custom-quote">Want something more intricate? ${ig ? `<a href="${esc(ig)}" target="_blank" rel="noopener">Message this baker for a custom quote.</a>` : 'Message this baker for a custom quote.'}</div>
@@ -319,4 +327,4 @@ function renderNotFound() {
   });
 }
 
-module.exports = { renderHome, renderDirectory, renderProfile, renderNotFound };
+module.exports = { renderHome, renderDirectory, renderProfile, renderNotFound, esc, layout };
