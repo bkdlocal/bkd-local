@@ -1123,8 +1123,11 @@ app.post('/api/orders/request', requireCustomerAuth, async (req, res, next) => {
       addOnTotal += cost;
       addOns.push({ name: def.name, unit: def.unit, price: def.price, qty });
     }
-    const subtotal = quantity * Number(item.price) + addOnTotal;
-    const orderTotal = Math.round((subtotal + SERVICE_FEE) * 100) / 100;
+    // Phase 1: store ONLY customer-facing numbers. The percentage platform fee
+    // (baker subtotal x Fee Rate) is NOT computed or stored at request time; it
+    // is calculated later when the baker confirms (Phase 2 / Stripe).
+    const itemSubtotal = Math.round((quantity * Number(item.price) + addOnTotal) * 100) / 100;
+    const orderTotal = Math.round((itemSubtotal + SERVICE_FEE) * 100) / 100;
 
     const customerName = [customer.fields['First Name'], customer.fields['Last Name']]
       .filter(Boolean).join(' ').trim();
@@ -1139,14 +1142,16 @@ app.post('/api/orders/request', requireCustomerAuth, async (req, res, next) => {
       'Customer Phone': customer.fields['Phone'] || undefined,
       'Menu Item': item.name,
       'Add-ons Selected': JSON.stringify(addOns),
+      'Item Subtotal': itemSubtotal,
+      'Service Fee': SERVICE_FEE,
       'Order Total': orderTotal,
       'Pick Up Date': pickupDate,
       'Notes': notes || undefined
     });
 
     // Baker notification: no channel is wired yet (email is stubbed). Log for now.
-    console.log(`[order] request for ${baker.email} from ${req.customer.email}: ${item.name} x${quantity}, pickup ${pickupDate}, total $${orderTotal}`);
-    res.json({ ok: true, orderTotal });
+    console.log(`[order] request for ${baker.email} from ${req.customer.email}: ${item.name} x${quantity}, subtotal $${itemSubtotal}, service $${SERVICE_FEE}, total $${orderTotal}`);
+    res.json({ ok: true, itemSubtotal, serviceFee: SERVICE_FEE, orderTotal });
   } catch (e) { next(e); }
 });
 
