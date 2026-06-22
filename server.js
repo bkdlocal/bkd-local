@@ -910,13 +910,26 @@ function availabilityDateMatches(d, dateFilter) {
   return iso === dateFilter.date;
 }
 
+// Spec 6.2: a row only makes the baker available if it still has open capacity
+// (Slots Filled < Slots Available). A blank Slots Filled counts as 0; a missing
+// or non-positive Slots Available is treated as no capacity.
+function slotHasOpenCapacity(available, filled) {
+  const a = Number(available);
+  if (!Number.isFinite(a) || a <= 0) return false;
+  const f = Number(filled) || 0;
+  return f < a;
+}
+
 // Returns the set of baker emails + linked record ids that have at least one
-// Availability row on (single) or within (range) the selected date.
+// Availability row on (single) or within (range) the selected date AND with
+// open capacity on that row.
 async function availableBakerKeys(dateFilter) {
   const emails = new Set();
   const ids = new Set();
   if (MODE === 'mock') {
-    if (mock.getSlots().some(s => availabilityDateMatches(s.date, dateFilter))) {
+    if (mock.getSlots().some(s =>
+      availabilityDateMatches(s.date, dateFilter) &&
+      slotHasOpenCapacity(s.slotsAvailable, s.slotsFilled))) {
       emails.add(normEmail(mock.baker.email));
       ids.add(mock.baker.id);
     }
@@ -925,6 +938,7 @@ async function availableBakerKeys(dateFilter) {
   const rows = await airtable.list('Availability');
   for (const rec of rows) {
     if (!availabilityDateMatches(rec.fields['Available Date'], dateFilter)) continue;
+    if (!slotHasOpenCapacity(rec.fields['Slots Available'], rec.fields['Slots Filled'])) continue;
     const email = normEmail(rec.fields['Baker Email']);
     if (email) emails.add(email);
     const links = rec.fields['Baker Profiles'];
