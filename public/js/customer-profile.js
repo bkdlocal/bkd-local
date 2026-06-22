@@ -33,7 +33,8 @@
       const state = document.getElementById('saveState');
       const occasionTags = Array.from(document.querySelectorAll('.tag-chip input:checked')).map(c => c.value);
       const body = {
-        firstName: val('firstName'), lastName: val('lastName'), city: val('city'), occasionTags
+        firstName: val('firstName'), lastName: val('lastName'), city: val('city'),
+        state: val('state'), zipCode: val('zip'), occasionTags
       };
       btn.disabled = true; state.hidden = true;
       try {

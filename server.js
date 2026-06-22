@@ -1256,6 +1256,8 @@ app.patch('/api/customer/profile', requireCustomerAuth, async (req, res, next) =
     if (b.firstName !== undefined) fields['First Name'] = String(b.firstName).trim();
     if (b.lastName !== undefined) fields['Last Name'] = String(b.lastName).trim();
     if (b.city !== undefined) fields['City'] = String(b.city).trim();
+    if (b.state !== undefined) fields['State'] = String(b.state).trim();
+    if (b.zipCode !== undefined) fields['Zip Code'] = String(b.zipCode).trim();
     if (Array.isArray(b.occasionTags)) {
       const allowed = new Set(customerSite.OCCASION_CHOICES);
       fields['Occasion Tags'] = b.occasionTags.filter(t => allowed.has(t));

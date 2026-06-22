@@ -13,6 +13,8 @@ function customerPublic(rec) {
     email: normEmail(f['Email']),
     phone: f['Phone'] || null,
     city: f['City'] || null,
+    state: f['State'] || null,
+    zipCode: f['Zip Code'] || null,
     profilePhotoUrl: f['Profile Photo URL'] || null,
     occasionTags: f['Occasion Tags'] || [],
     phoneVerified: f['Phone Verified'] === true,
