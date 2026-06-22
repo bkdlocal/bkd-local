@@ -306,9 +306,9 @@ function renderProfile({ baker, menu, reviews }) {
       ${reviewsSection(reviews)}
       <div class="profile-actions">
         <a class="btn btn-primary btn-block" href="${requestHref}"${requestExternal ? ' target="_blank" rel="noopener"' : ''}>Request an order</a>
-        ${ig ? `<a class="btn btn-outline" href="${esc(ig)}" target="_blank" rel="noopener">Message</a>` : ''}
+        <a class="btn btn-outline" href="/customer/messages?baker=${esc(baker.id)}">Message</a>
       </div>
-      <div class="custom-quote">Want something more intricate? ${ig ? `<a href="${esc(ig)}" target="_blank" rel="noopener">Message this baker for a custom quote.</a>` : 'Message this baker for a custom quote.'}</div>
+      <div class="custom-quote">Want something more intricate? <a href="/customer/messages?baker=${esc(baker.id)}&amp;quote=1">Message this baker for a custom quote.</a></div>
     </div>
   </article>`;
   const desc = baker.bio || `${baker.businessName}, a verified local baker${baker.city ? ` in ${shortCity(baker.city)}` : ''} on Bkd Local.`;

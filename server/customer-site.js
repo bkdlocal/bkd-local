@@ -14,6 +14,15 @@ function starsRow(n) {
   return '★★★★★'.slice(0, r) + '☆☆☆☆☆'.slice(0, 5 - r);
 }
 
+function custTabs(active) {
+  const tab = (key, href, label) => `<a class="${active === key ? 'active' : ''}" href="${href}">${label}</a>`;
+  return `<nav class="cust-tabs">${tab('profile', '/customer/profile', 'Profile')}${tab('orders', '/customer/orders', 'Orders')}${tab('messages', '/customer/messages', 'Messages')}</nav>`;
+}
+
+function jsonData(id, obj) {
+  return `<script id="${id}" type="application/json">${JSON.stringify(obj).replace(/</g, '\\u003c')}</script>`;
+}
+
 // "New" and "Pending" are the same entry state until a Pending option is added
 // to the Orders.Order Status field in Airtable.
 function normalizeStatus(s) {
@@ -83,7 +92,7 @@ function renderCustomerProfile({ customer, orders }) {
 
   const body = `
   <div class="cust-page">
-    <nav class="cust-tabs"><a class="active" href="/customer/profile">Profile</a><a href="/customer/orders">Orders</a></nav>
+    ${custTabs('profile')}
 
     <section class="profile-top">
       ${avatarBlock(customer)}
@@ -150,7 +159,7 @@ function orderRow(o) {
 function renderPastOrders({ orders }) {
   const body = `
   <div class="cust-page">
-    <nav class="cust-tabs"><a href="/customer/profile">Profile</a><a class="active" href="/customer/orders">Orders</a></nav>
+    ${custTabs('orders')}
     <h1>Your orders</h1>
     ${(orders || []).length
       ? `<div class="order-list">${orders.map(orderRow).join('')}</div>`
@@ -238,10 +247,78 @@ function renderOrderStatus({ order, baker }) {
   return layout({ title: `${order.menuItem} · Bkd Local`, description: '', body });
 }
 
+// ── 6.5 Messaging ────────────────────────────────────────────────────────────
+
+function threadThumb(name, photo) {
+  return photo
+    ? `<span class="thread-thumb" style="background-image:url('${esc(photo)}')"></span>`
+    : `<span class="thread-thumb thread-thumb-empty">🧁</span>`;
+}
+
+function bubble(m) {
+  return `<div class="bubble bubble-${m.sender === 'baker' ? 'baker' : 'customer'}"><div class="bubble-text">${esc(m.text)}</div><time class="bubble-time" data-sent="${esc(m.sentAt || '')}"></time></div>`;
+}
+
+function threadListItem(t, activeId) {
+  const preview = (t.lastFrom === 'customer' ? 'You: ' : '') + (t.lastMessage || '');
+  return `<a class="thread-item${t.threadId === activeId ? ' active' : ''}" href="/customer/messages?thread=${esc(t.threadId)}">
+      ${threadThumb(t.bakerName, t.bakerPhoto)}
+      <span class="thread-meta">
+        <span class="thread-name">${esc(t.bakerName)}${t.isCustomQuote ? ' <span class="quote-tag">Quote</span>' : ''}</span>
+        <span class="thread-preview">${esc(preview)}</span>
+      </span>
+      ${t.unread ? '<span class="unread-dot" title="New message"></span>' : ''}
+    </a>`;
+}
+
+function renderCustomerMessages({ threads, active, customer }) {
+  const list = threads.length
+    ? threads.map(t => threadListItem(t, active && active.threadId)).join('')
+    : '<p class="muted empty-threads">No conversations yet.</p>';
+
+  let view;
+  if (active) {
+    const b = active.baker;
+    const bubbles = active.messages.length
+      ? active.messages.map(bubble).join('')
+      : '<p class="muted bubbles-empty">Say hello to start the conversation.</p>';
+    view = `
+      <div class="thread-head">
+        <a class="thread-baker" href="/bakers/${esc(b.id)}">
+          ${threadThumb(b.businessName, b.photo)}
+          <span class="thread-baker-name">${esc(b.businessName)}</span>
+        </a>
+      </div>
+      ${active.isCustomQuote ? '<div class="quote-banner">This is a custom quote conversation.</div>' : ''}
+      <div class="bubbles" id="bubbles">${bubbles}</div>
+      <form class="composer" id="composer">
+        <input type="text" id="msgInput" placeholder="Write a message" autocomplete="off" maxlength="2000">
+        <button type="submit" class="btn btn-primary">Send</button>
+      </form>`;
+  } else {
+    view = `<div class="thread-empty"><p class="muted">No messages yet. <a href="/bakers">Find a baker</a> to start a conversation.</p></div>`;
+  }
+
+  const body = `
+  <div class="cust-page msg-page">
+    ${custTabs('messages')}
+    <h1>Messages</h1>
+    <div class="msg-layout">
+      <aside class="thread-list">${list}</aside>
+      <section class="thread-view">${view}</section>
+    </div>
+  </div>
+  ${active ? jsonData('msg-data', { threadId: active.threadId, bakerId: active.baker.id, bakerEmail: active.baker.email, isCustomQuote: !!active.isCustomQuote, customerEmail: customer.email }) : ''}
+  <script src="/js/customer-messages.js"></script>`;
+
+  return layout({ title: 'Messages · Bkd Local', description: '', body });
+}
+
 module.exports = {
   renderCustomerProfile,
   renderPastOrders,
   renderOrderStatus,
+  renderCustomerMessages,
   // exported for tests
   statusInfo,
   addressVisible,

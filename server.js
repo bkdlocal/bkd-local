@@ -33,6 +33,7 @@ const publicSite = require('./server/public-site');
 const publicData = require('./server/public-data');
 const orderFlow = require('./server/order-flow');
 const customerSite = require('./server/customer-site');
+const messaging = require('./server/messaging');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = getSessionSecret();
@@ -51,6 +52,7 @@ const customers = new CustomerStore(airtable);
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 const SERVICE_FEE = 1.5; // Phase 1 flat customer service fee, shown on the order request.
 const mockOrders = []; // mock-mode customer order store (in-memory)
+const mockMessages = []; // mock-mode unified Messages store (in-memory)
 
 const app = express();
 app.set('trust proxy', true);
@@ -415,17 +417,15 @@ app.patch('/api/availability/slots/:id', requireAuth, async (req, res, next) => 
 
 app.get('/api/messages', requireAuth, async (req, res, next) => {
   try {
-    await currentBaker(req);
-    if (MODE === 'mock') return res.json({ conversations: mock.getConversations() });
-    res.json({ conversations: [], note: 'Messages live in a future Airtable table. Showing empty for now.' });
+    const baker = await currentBaker(req);
+    res.json({ conversations: await bakerConversations(baker.email) });
   } catch (e) { next(e); }
 });
 
 app.get('/api/messages/:id', requireAuth, async (req, res, next) => {
   try {
-    await currentBaker(req);
-    if (MODE !== 'mock') return res.status(404).json({ error: 'Conversation not found.' });
-    const conv = mock.getConversation(req.params.id);
+    const baker = await currentBaker(req);
+    const conv = await bakerConversation(baker.email, req.params.id);
     if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
     res.json(conv);
   } catch (e) { next(e); }
@@ -433,20 +433,21 @@ app.get('/api/messages/:id', requireAuth, async (req, res, next) => {
 
 app.post('/api/messages/:id/reply', requireAuth, async (req, res, next) => {
   try {
-    await currentBaker(req);
+    const baker = await currentBaker(req);
     const text = String(req.body?.text || '').trim();
     if (!text) return res.status(400).json({ error: 'Message cannot be empty.' });
-    if (MODE !== 'mock') return res.status(503).json({ error: 'Messaging is not connected yet.' });
-    const msg = mock.appendMessage(req.params.id, text);
-    if (!msg) return res.status(404).json({ error: 'Conversation not found.' });
-    res.json({ ok: true, message: msg });
+    const list = (await listMessages({ thread: req.params.id })).filter(m => m.bakerEmail === baker.email);
+    if (!list.length) return res.status(404).json({ error: 'Conversation not found.' });
+    const msg = await createMessage({ bakerEmail: baker.email, customerEmail: list[0].customerEmail, sender: 'baker', text });
+    res.json({ ok: true, message: { id: msg.id, from: 'baker', text: msg.text, sentAt: msg.sentAt } });
   } catch (e) { next(e); }
 });
 
 app.post('/api/messages/:id/read', requireAuth, async (req, res, next) => {
   try {
     await currentBaker(req);
-    if (MODE === 'mock') mock.markRead(req.params.id);
+    // No read-state field on Messages yet; unread is derived (trailing customer
+    // messages). Replying clears it. True read receipts need a schema field (later).
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -558,8 +559,7 @@ app.delete('/api/menu/:id', requireAuth, async (req, res, next) => {
 app.post('/api/messages/:id/smart-reply', requireAuth, async (req, res, next) => {
   try {
     const baker = await currentBaker(req);
-    if (MODE !== 'mock') return res.status(503).json({ error: 'Messaging is not connected yet.' });
-    const conv = mock.getConversation(req.params.id);
+    const conv = await bakerConversation(baker.email, req.params.id);
     if (!conv) return res.status(404).json({ error: 'Conversation not found.' });
 
     let lastCustomerIdx = -1;
@@ -1300,6 +1300,211 @@ app.post('/api/orders/:orderId/rate', requireCustomerAuth, async (req, res, next
     }
     console.log(`[rating] ${req.customer.email} rated baker ${order.bakerEmail} ${rating}★ on order ${order.id} (aggregate recalc deferred to Batch E)`);
     res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// ── Messaging (spec 6.5 + section 8): shared by customer + baker sides ───────
+
+async function listMessages(filter) {
+  if (MODE === 'mock') {
+    return mockMessages.filter(r => {
+      const f = r.fields;
+      if (filter.thread && f['Thread ID'] !== filter.thread) return false;
+      if (filter.baker && normEmail(f['Baker Email']) !== filter.baker) return false;
+      if (filter.customer && normEmail(f['Customer Email']) !== filter.customer) return false;
+      return true;
+    }).map(messaging.msgFromRecord);
+  }
+  const clauses = [];
+  if (filter.thread) clauses.push(`{Thread ID} = '${escapeFormula(filter.thread)}'`);
+  if (filter.baker) clauses.push(`LOWER(TRIM({Baker Email})) = '${escapeFormula(filter.baker)}'`);
+  if (filter.customer) clauses.push(`LOWER(TRIM({Customer Email})) = '${escapeFormula(filter.customer)}'`);
+  if (!clauses.length) return [];
+  const formula = clauses.length > 1 ? `AND(${clauses.join(', ')})` : clauses[0];
+  const recs = await airtable.list('Messages', { filterByFormula: formula });
+  return recs.map(messaging.msgFromRecord);
+}
+
+async function createMessage({ bakerEmail, customerEmail, sender, text, isCustomQuote, orderId }) {
+  const fields = {
+    'Thread ID': messaging.threadId(bakerEmail, customerEmail),
+    'Baker Email': bakerEmail,
+    'Customer Email': customerEmail,
+    'Sender': sender,
+    'Message Text': text,
+    'Sent At': new Date().toISOString()
+  };
+  if (isCustomQuote) fields['Is Custom Quote'] = true;
+  if (orderId) fields['Order ID'] = orderId;
+  if (MODE === 'mock') {
+    const id = 'msg-' + (mockMessages.length + 1);
+    mockMessages.push({ id, fields });
+    return messaging.msgFromRecord({ id, fields });
+  }
+  return messaging.msgFromRecord(await airtable.create('Messages', fields));
+}
+
+async function threadMessagesOwned(threadId, customerEmail) {
+  const msgs = (await listMessages({ thread: threadId })).filter(m => m.customerEmail === customerEmail);
+  msgs.sort(messaging.bySentAtAsc);
+  return msgs;
+}
+
+async function customerThreads(customerEmail) {
+  const grouped = messaging.groupByThread(await listMessages({ customer: customerEmail }));
+  const cache = new Map();
+  const out = [];
+  for (const [tid, list] of grouped) {
+    const bakerEmail = list[0].bakerEmail;
+    if (!cache.has(bakerEmail)) cache.set(bakerEmail, await loadBakerLite(bakerEmail));
+    const baker = cache.get(bakerEmail);
+    const last = list[list.length - 1];
+    out.push({
+      threadId: tid, bakerEmail,
+      bakerId: baker ? baker.id : null,
+      bakerName: baker ? baker.businessName : bakerEmail,
+      bakerPhoto: baker ? baker.photo : null,
+      lastMessage: last.text, lastFrom: last.sender, lastMessageAt: last.sentAt,
+      unread: last.sender === 'baker',
+      isCustomQuote: list.some(m => m.isCustomQuote)
+    });
+  }
+  out.sort((a, b) => String(b.lastMessageAt || '').localeCompare(String(a.lastMessageAt || '')));
+  return out;
+}
+
+// trailing customer messages since the baker's last reply (no read-state field)
+function trailingUnread(list) {
+  let n = 0;
+  for (let i = list.length - 1; i >= 0; i--) { if (list[i].sender === 'customer') n++; else break; }
+  return n;
+}
+
+async function bakerConversations(bakerEmail) {
+  const grouped = messaging.groupByThread(await listMessages({ baker: bakerEmail }));
+  const cache = new Map();
+  const out = [];
+  for (const [tid, list] of grouped) {
+    const customerEmail = list[0].customerEmail;
+    if (!cache.has(customerEmail)) cache.set(customerEmail, await customers.findByEmail(customerEmail));
+    const cf = (cache.get(customerEmail) || {}).fields || {};
+    const last = list[list.length - 1];
+    const orderMsg = list.find(m => m.orderId);
+    out.push({
+      id: tid,
+      customerName: [cf['First Name'], cf['Last Name']].filter(Boolean).join(' ').trim() || customerEmail,
+      customerCity: cf['City'] || '',
+      customerEmail,
+      customerPhone: cf['Phone'] || '',
+      relatedOrderId: orderMsg ? orderMsg.orderId : null,
+      unread: trailingUnread(list),
+      isCustomQuote: list.some(m => m.isCustomQuote),
+      lastMessage: last.text, lastFrom: last.sender, lastMessageAt: last.sentAt
+    });
+  }
+  out.sort((a, b) => String(b.lastMessageAt || '').localeCompare(String(a.lastMessageAt || '')));
+  return out;
+}
+
+async function bakerConversation(bakerEmail, threadId) {
+  const list = (await listMessages({ thread: threadId })).filter(m => m.bakerEmail === bakerEmail).sort(messaging.bySentAtAsc);
+  if (!list.length) return null;
+  const customerEmail = list[0].customerEmail;
+  const cf = ((await customers.findByEmail(customerEmail)) || {}).fields || {};
+  const orderMsg = list.find(m => m.orderId);
+  return {
+    id: threadId,
+    customerName: [cf['First Name'], cf['Last Name']].filter(Boolean).join(' ').trim() || customerEmail,
+    customerCity: cf['City'] || '',
+    customerEmail,
+    customerPhone: cf['Phone'] || '',
+    relatedOrderId: orderMsg ? orderMsg.orderId : null,
+    unread: trailingUnread(list),
+    isCustomQuote: list.some(m => m.isCustomQuote),
+    messages: list.map(m => ({ id: m.id, from: m.sender, text: m.text, sentAt: m.sentAt }))
+  };
+}
+
+function activeThreadFor(threadId, bakerLite, messages, isCustomQuote) {
+  return {
+    threadId,
+    baker: { id: bakerLite.id, businessName: bakerLite.businessName, photo: bakerLite.photo, email: bakerLite.email },
+    messages,
+    isCustomQuote
+  };
+}
+
+app.get('/customer/messages', async (req, res, next) => {
+  try {
+    if (!requireCustomerPage(req, res)) return;
+    const email = req.customer.email;
+    const threads = await customerThreads(email);
+    let active = null;
+
+    const wantThread = req.query.thread ? String(req.query.thread) : '';
+    const wantBaker = req.query.baker ? String(req.query.baker) : '';
+    const wantQuote = String(req.query.quote || '') === '1';
+
+    if (wantBaker) {
+      const baker = await loadPublicBakerById(wantBaker);
+      if (baker) {
+        const tid = messaging.threadId(baker.email, email);
+        const msgs = await threadMessagesOwned(tid, email);
+        active = activeThreadFor(tid, { id: baker.id, businessName: baker.businessName, photo: baker.photo, email: baker.email }, msgs, wantQuote || msgs.some(m => m.isCustomQuote));
+      }
+    } else if (wantThread) {
+      const t = threads.find(x => x.threadId === wantThread);
+      if (t) {
+        const msgs = await threadMessagesOwned(t.threadId, email);
+        active = activeThreadFor(t.threadId, { id: t.bakerId, businessName: t.bakerName, photo: t.bakerPhoto, email: t.bakerEmail }, msgs, t.isCustomQuote);
+      }
+    } else if (threads.length) {
+      const t = threads[0];
+      const msgs = await threadMessagesOwned(t.threadId, email);
+      active = activeThreadFor(t.threadId, { id: t.bakerId, businessName: t.bakerName, photo: t.bakerPhoto, email: t.bakerEmail }, msgs, t.isCustomQuote);
+    }
+
+    const rec = await customers.findByEmail(email);
+    res.type('html').send(customerSite.renderCustomerMessages({ threads, active, customer: customerPublic(rec) }));
+  } catch (e) { next(e); }
+});
+
+app.get('/api/customer/messages/:threadId', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const msgs = await threadMessagesOwned(req.params.threadId, req.customer.email);
+    res.json({
+      messages: msgs.map(m => ({ sender: m.sender, text: m.text, sentAt: m.sentAt })),
+      isCustomQuote: msgs.some(m => m.isCustomQuote)
+    });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/customer/messages', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const b = req.body || {};
+    const text = String(b.text || '').trim();
+    if (!text) return res.status(400).json({ error: 'Message cannot be empty.' });
+
+    let bakerEmail = b.bakerEmail ? normEmail(b.bakerEmail) : '';
+    if (!bakerEmail && b.bakerId) {
+      const baker = await loadPublicBakerById(String(b.bakerId));
+      if (baker) bakerEmail = baker.email;
+    }
+    if (!bakerEmail && b.threadId) {
+      const existing = await listMessages({ thread: String(b.threadId) });
+      const owned = existing.find(m => m.customerEmail === req.customer.email);
+      if (owned) bakerEmail = owned.bakerEmail;
+    }
+    if (!bakerEmail) return res.status(400).json({ error: 'Could not determine the baker for this message.' });
+
+    const msg = await createMessage({
+      bakerEmail, customerEmail: req.customer.email, sender: 'customer', text,
+      isCustomQuote: b.isCustomQuote === true,
+      orderId: b.orderId ? String(b.orderId) : null
+    });
+    // Email notification (debounced 1/30min per thread) is deferred: no email
+    // channel is wired yet. The in-app unread indicator covers this for now.
+    res.json({ ok: true, message: msg });
   } catch (e) { next(e); }
 });
 
