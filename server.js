@@ -29,6 +29,8 @@ const multer = require('multer');
 const { hashPassword, verifyPassword, generateToken } = require('./server/passwords');
 const emailService = require('./server/email');
 const { CustomerStore, customerPublic } = require('./server/customers');
+const publicSite = require('./server/public-site');
+const publicData = require('./server/public-data');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = getSessionSecret();
@@ -71,7 +73,9 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.static(path.join(__dirname, 'public')));
+// index:false so "/" is handled by the public homepage route below, not by
+// auto-serving the baker SPA's index.html.
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 function httpError(status, message) {
   const e = new Error(message);
@@ -854,6 +858,86 @@ app.delete('/api/availability/slots/:id', requireAuth, async (req, res, next) =>
     await airtable.delete('Availability', req.params.id);
     res.json({ ok: true });
   } catch (e) { next(e); }
+});
+
+// ── Public site (server-rendered) ────────────────────────────────────────────
+
+async function loadPublicBakers() {
+  if (MODE === 'mock') return [publicData.publicBakerFromMock(mock.baker)];
+  const records = await airtable.list('Baker Profiles', {
+    filterByFormula: "{Profile Status} = 'Live'"
+  });
+  return records.map(publicData.publicBakerFromRecord);
+}
+
+async function loadPublicBakerById(id) {
+  if (MODE === 'mock') {
+    return id === mock.baker.id ? publicData.publicBakerFromMock(mock.baker) : null;
+  }
+  const rec = await airtable.findById('Baker Profiles', id);
+  if (!rec || rec.fields['Profile Status'] !== 'Live') return null;
+  return publicData.publicBakerFromRecord(rec);
+}
+
+async function loadPublicMenu(email) {
+  if (MODE === 'mock') {
+    return mock.getMenuItems().filter(m => m.available !== false).map(publicData.publicMenuItemFromMock);
+  }
+  const records = await airtable.list('Menu Items', {
+    filterByFormula: `AND(LOWER(TRIM({Baker Email})) = '${escapeFormula(email)}', {Available})`
+  });
+  return records.map(publicData.publicMenuItemFromRecord);
+}
+
+async function loadPublicReviews(email) {
+  if (MODE === 'mock') {
+    return mock.getReviews().map(r => ({ reviewerName: r.reviewerName, rating: r.rating, text: r.text, date: r.date }));
+  }
+  const records = await airtable.list('Reviews', {
+    filterByFormula: `LOWER(TRIM({Baker Email})) = '${escapeFormula(email)}'`,
+    sort: [{ field: 'Review Date', direction: 'desc' }]
+  });
+  return records.map(publicData.publicReviewFromRecord);
+}
+
+app.get('/', async (req, res, next) => {
+  try {
+    const bakers = await loadPublicBakers();
+    res.type('html').send(publicSite.renderHome({ bakers }));
+  } catch (e) { next(e); }
+});
+
+app.get('/bakers', async (req, res, next) => {
+  try {
+    const all = await loadPublicBakers();
+    const cities = [...new Set(all.map(b => b.city).filter(Boolean))].sort();
+    const types = [...new Set(all.flatMap(b => b.productTypes))].sort();
+    const city = req.query.city ? String(req.query.city) : '';
+    const type = req.query.type ? String(req.query.type) : '';
+    let bakers = all;
+    if (city) bakers = bakers.filter(b => b.city === city);
+    if (type) bakers = bakers.filter(b => b.productTypes.includes(type));
+    res.type('html').send(publicSite.renderDirectory({
+      bakers, cities, types, filters: { city, type }, total: all.length
+    }));
+  } catch (e) { next(e); }
+});
+
+app.get('/bakers/:id', async (req, res, next) => {
+  try {
+    const baker = await loadPublicBakerById(req.params.id);
+    if (!baker) return res.status(404).type('html').send(publicSite.renderNotFound());
+    const [menu, reviews] = await Promise.all([
+      loadPublicMenu(baker.email),
+      loadPublicReviews(baker.email)
+    ]);
+    res.type('html').send(publicSite.renderProfile({ baker, menu, reviews }));
+  } catch (e) { next(e); }
+});
+
+// Baker-facing SPA now lives under /app (client-side routed).
+app.get(['/app', '/app/*'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.use((err, req, res, next) => {
