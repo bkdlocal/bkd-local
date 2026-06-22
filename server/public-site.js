@@ -1,4 +1,6 @@
 const REGION = 'West Tennessee';
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'];
 
 function esc(s) {
   return String(s == null ? '' : s)
@@ -9,6 +11,13 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
+// Format a 'YYYY-MM-DD' string without constructing a Date (no timezone shift).
+function formatDateLabel(iso) {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || '';
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${MONTHS[m - 1]} ${d}, ${y}`;
+}
+
 function instagramUrl(handle) {
   if (!handle) return null;
   const h = String(handle).trim();
@@ -16,7 +25,6 @@ function instagramUrl(handle) {
   return `https://instagram.com/${h.replace(/^@/, '')}`;
 }
 
-// "Jackson, TN " -> "Jackson"
 function shortCity(city) {
   if (!city) return '';
   return String(city).split(',')[0].trim();
@@ -77,25 +85,49 @@ function header() {
 
 function footer() {
   return `<footer class="site-footer">
-    <div>© Bkd Local — local bakers, baked to order</div>
+    <div>© Bkd Local · local bakers, baked to order</div>
     <div class="footer-links"><a href="/bakers">Browse bakers</a> · <a href="/app">For bakers</a></div>
   </footer>`;
 }
 
-function searchBar(q) {
-  return `<form class="searchbar" method="get" action="/bakers">
-    <span class="search-icon">${SEARCH_ICON}</span>
-    <input type="search" name="q" value="${esc(q || '')}" placeholder="Search by treat, baker name, or occasion…" aria-label="Search bakers">
+// Date-first search. Date leads; the treat/name/occasion box is a secondary,
+// combinable filter. Single vs range is a pure-CSS radio toggle (no JS).
+function searchBlock(filters) {
+  const f = filters || {};
+  const isRange = f.mode === 'range';
+  return `<form class="search-block" method="get" action="/bakers">
+    <div class="search-prompt">When do you need your bakes?</div>
+    <input class="mode-radio" type="radio" name="mode" id="mode-single" value="single"${isRange ? '' : ' checked'}>
+    <input class="mode-radio" type="radio" name="mode" id="mode-range" value="range"${isRange ? ' checked' : ''}>
+    <div class="mode-tabs">
+      <label for="mode-single">Single date</label>
+      <label for="mode-range">Date range</label>
+    </div>
+    <div class="date-fields">
+      <div class="df-single">
+        <input type="date" name="date" value="${esc(f.date || '')}" aria-label="Date you need your bakes">
+      </div>
+      <div class="df-range">
+        <input type="date" name="from" value="${esc(f.from || '')}" aria-label="From date">
+        <span class="to-sep">to</span>
+        <input type="date" name="to" value="${esc(f.to || '')}" aria-label="To date">
+      </div>
+    </div>
+    <div class="search-secondary">
+      <span class="search-icon">${SEARCH_ICON}</span>
+      <input type="search" name="q" value="${esc(f.q || '')}" placeholder="Filter by treat, baker name, or occasion (optional)" aria-label="Filter by treat, baker, or occasion">
+      <button class="btn btn-primary" type="submit">Find bakers</button>
+    </div>
   </form>`;
 }
 
-function hero({ q, compact } = {}) {
+function hero(filters, { compact } = {}) {
   return `<section class="hero${compact ? ' hero-compact' : ''}">
     <div class="hero-inner">
       <div class="hero-eyebrow">${esc(REGION.toUpperCase())}</div>
       <h1>Find an artisan baker <span>near you</span></h1>
       <p class="hero-sub">Every baker is verified. Prices are upfront. Payment is protected.</p>
-      ${searchBar(q)}
+      ${searchBlock(filters)}
     </div>
   </section>`;
 }
@@ -136,19 +168,19 @@ function renderHome({ bakers }) {
     </div>
     ${featured.length
       ? `<div class="baker-grid">${featured.map(bakerCard).join('')}</div>`
-      : `<p class="empty">No bakers are live just yet — check back soon.</p>`}
+      : `<p class="empty">No bakers are live just yet. Check back soon.</p>`}
   </section>
   <section class="section how" id="how">
     <h2>How it works</h2>
     <div class="how-grid">
-      <div class="how-step"><span class="how-num">1</span><h4>Browse</h4><p>Explore verified local bakers and their menus.</p></div>
-      <div class="how-step"><span class="how-num">2</span><h4>Request</h4><p>Tell a baker what you need for your occasion.</p></div>
-      <div class="how-step"><span class="how-num">3</span><h4>Pick up</h4><p>Grab your order fresh on pickup day.</p></div>
+      <div class="how-step"><span class="how-num">1</span><h4>Pick your date</h4><p>Tell us when you need your bakes.</p></div>
+      <div class="how-step"><span class="how-num">2</span><h4>Browse who is free</h4><p>See verified bakers available then.</p></div>
+      <div class="how-step"><span class="how-num">3</span><h4>Request and pick up</h4><p>Reserve your order and grab it fresh.</p></div>
     </div>
   </section>`;
   return layout({
-    title: 'Bkd Local — Find an artisan baker near you',
-    description: `Discover verified local bakers in ${REGION} for cakes, cookies, macarons and more. Made to order.`,
+    title: 'Find an artisan baker near you · Bkd Local',
+    description: `Discover verified local bakers in ${REGION} available on your date. Cakes, cookies, macarons and more, made to order.`,
     body
   });
 }
@@ -164,26 +196,46 @@ function buildQuery(params) {
   return parts.length ? `?${parts.join('&')}` : '';
 }
 
+function dateLabel(filters) {
+  if (filters.mode === 'range' && filters.from && filters.to) {
+    return `${formatDateLabel(filters.from)} to ${formatDateLabel(filters.to)}`;
+  }
+  if (filters.date) return formatDateLabel(filters.date);
+  return '';
+}
+
 function renderDirectory({ bakers, cities, types, filters, total }) {
-  const q = filters.q || '';
-  const typePills = [pill('All treats', `/bakers${buildQuery({ q })}`, !filters.type && !filters.city)]
-    .concat(types.map(t => pill(t, `/bakers${buildQuery({ q, type: t })}`, filters.type === t)))
-    .concat(cities.map(c => pill(shortCity(c), `/bakers${buildQuery({ q, city: c })}`, filters.city === c)))
+  // Carry the active date + text query through every filter pill.
+  const carry = { q: filters.q, mode: filters.mode, date: filters.date, from: filters.from, to: filters.to };
+  const typePills = [pill('All treats', `/bakers${buildQuery({ ...carry })}`, !filters.type && !filters.city)]
+    .concat(types.map(t => pill(t, `/bakers${buildQuery({ ...carry, type: t })}`, filters.type === t)))
+    .concat(cities.map(c => pill(shortCity(c), `/bakers${buildQuery({ ...carry, city: c })}`, filters.city === c)))
     .join('');
+
+  const dl = dateLabel(filters);
+  const countSuffix = dl ? `available ${esc(dl)}` : `in ${esc(REGION)}`;
+
+  let emptyMsg;
+  if (dl) {
+    emptyMsg = `No bakers are available ${esc(dl)}. Try another date or <a href="/bakers">clear your search</a>.`;
+  } else {
+    emptyMsg = `No bakers match your search. <a href="/bakers">Clear filters</a>.`;
+  }
+
   const body = `
-  ${hero({ q, compact: true })}
+  ${hero(filters, { compact: true })}
   <section class="dir-controls">
     <div class="pills">${typePills}</div>
-    <div class="result-count"><strong>${bakers.length} artisan baker${bakers.length === 1 ? '' : 's'}</strong> in ${esc(REGION)}</div>
+    <div class="result-count"><strong>${bakers.length} artisan baker${bakers.length === 1 ? '' : 's'}</strong> ${countSuffix}</div>
   </section>
   <section class="section">
     ${bakers.length
       ? `<div class="baker-grid">${bakers.map(bakerCard).join('')}</div>`
-      : `<p class="empty">No bakers match your search. <a href="/bakers">Clear filters</a></p>`}
+      : `<p class="empty">${emptyMsg}</p>`}
   </section>`;
   return layout({
-    title: 'Find a baker — Bkd Local',
-    description: `Browse ${total} verified local bakers in ${REGION} by treat and city.`,
+    title: 'Find a baker · Bkd Local',
+    description: `Browse verified local bakers in ${REGION} by date, treat and city.`,
     body
   });
 }
@@ -228,9 +280,7 @@ function reviewsSection(reviews) {
 
 function renderProfile({ baker, menu, reviews }) {
   const ig = instagramUrl(baker.instagram);
-  const bannerStyle = baker.photo
-    ? ` style="background-image:url('${esc(baker.photo)}')"`
-    : '';
+  const bannerStyle = baker.photo ? ` style="background-image:url('${esc(baker.photo)}')"` : '';
   const loc = [shortCity(baker.city) ? `${esc(baker.city)}` : '', 'Pickup available'].filter(Boolean).join(' · ');
   const body = `
   <nav class="crumbs"><a href="/bakers">← All bakers</a></nav>
@@ -253,13 +303,13 @@ function renderProfile({ baker, menu, reviews }) {
       <div class="custom-quote">Want something more intricate? ${ig ? `<a href="${esc(ig)}" target="_blank" rel="noopener">Message this baker for a custom quote.</a>` : 'Message this baker for a custom quote.'}</div>
     </div>
   </article>`;
-  const desc = baker.bio || `${baker.businessName} — verified local baker${baker.city ? ` in ${shortCity(baker.city)}` : ''} on Bkd Local.`;
-  return layout({ title: `${baker.businessName} — Bkd Local`, description: desc, body });
+  const desc = baker.bio || `${baker.businessName}, a verified local baker${baker.city ? ` in ${shortCity(baker.city)}` : ''} on Bkd Local.`;
+  return layout({ title: `${baker.businessName} · Bkd Local`, description: desc, body });
 }
 
 function renderNotFound() {
   return layout({
-    title: 'Not found — Bkd Local',
+    title: 'Not found · Bkd Local',
     description: '',
     body: `<section class="notfound">
       <h1>Baker not found</h1>

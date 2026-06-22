@@ -900,6 +900,39 @@ async function loadPublicReviews(email) {
   return records.map(publicData.publicReviewFromRecord);
 }
 
+// Availability "Available Date" is a date-only field; the API returns it as a
+// 'YYYY-MM-DD' string. Compare as strings (no Date parsing) so the picker value
+// and the stored value can't drift by a day across timezones.
+function availabilityDateMatches(d, dateFilter) {
+  if (!d || typeof d !== 'string') return false;
+  const iso = d.slice(0, 10);
+  if (dateFilter.mode === 'range') return iso >= dateFilter.from && iso <= dateFilter.to;
+  return iso === dateFilter.date;
+}
+
+// Returns the set of baker emails + linked record ids that have at least one
+// Availability row on (single) or within (range) the selected date.
+async function availableBakerKeys(dateFilter) {
+  const emails = new Set();
+  const ids = new Set();
+  if (MODE === 'mock') {
+    if (mock.getSlots().some(s => availabilityDateMatches(s.date, dateFilter))) {
+      emails.add(normEmail(mock.baker.email));
+      ids.add(mock.baker.id);
+    }
+    return { emails, ids };
+  }
+  const rows = await airtable.list('Availability');
+  for (const rec of rows) {
+    if (!availabilityDateMatches(rec.fields['Available Date'], dateFilter)) continue;
+    const email = normEmail(rec.fields['Baker Email']);
+    if (email) emails.add(email);
+    const links = rec.fields['Baker Profiles'];
+    if (Array.isArray(links)) links.forEach(id => ids.add(id));
+  }
+  return { emails, ids };
+}
+
 app.get('/', async (req, res, next) => {
   try {
     const bakers = await loadPublicBakers();
@@ -915,7 +948,28 @@ app.get('/bakers', async (req, res, next) => {
     const city = req.query.city ? String(req.query.city) : '';
     const type = req.query.type ? String(req.query.type) : '';
     const q = req.query.q ? String(req.query.q).trim() : '';
+
+    // Date-first filter (primary). Single date or inclusive from/to range.
+    const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+    const mode = req.query.mode === 'range' ? 'range' : 'single';
+    let date = '', from = '', to = '', dateFilter = null;
+    if (mode === 'range') {
+      from = isDate(req.query.from) ? String(req.query.from) : '';
+      to = isDate(req.query.to) ? String(req.query.to) : '';
+      if (from && to) {
+        if (from > to) { const tmp = from; from = to; to = tmp; } // forgiving about order
+        dateFilter = { mode: 'range', from, to };
+      }
+    } else {
+      date = isDate(req.query.date) ? String(req.query.date) : '';
+      if (date) dateFilter = { mode: 'single', date };
+    }
+
     let bakers = all;
+    if (dateFilter) {
+      const { emails, ids } = await availableBakerKeys(dateFilter);
+      bakers = bakers.filter(b => emails.has(b.email) || ids.has(b.id));
+    }
     if (q) {
       const ql = q.toLowerCase();
       bakers = bakers.filter(b =>
@@ -925,8 +979,11 @@ app.get('/bakers', async (req, res, next) => {
     }
     if (city) bakers = bakers.filter(b => b.city === city);
     if (type) bakers = bakers.filter(b => b.productTypes.includes(type));
+
     res.type('html').send(publicSite.renderDirectory({
-      bakers, cities, types, filters: { city, type, q }, total: all.length
+      bakers, cities, types,
+      filters: { city, type, q, mode, date, from, to },
+      total: all.length
     }));
   } catch (e) { next(e); }
 });
