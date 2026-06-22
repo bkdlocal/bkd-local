@@ -111,12 +111,44 @@ function publicReviewFromRecord(rec) {
   };
 }
 
+function numOrNull(v) {
+  if (typeof v === 'number') return v;
+  if (v == null || v === '') return null;
+  const n = parseFloat(v);
+  return Number.isNaN(n) ? null : n;
+}
+
+function customerOrderFromRecord(rec) {
+  const f = rec.fields || {};
+  let addOns = [];
+  try { const p = JSON.parse(f['Add-ons Selected'] || '[]'); if (Array.isArray(p)) addOns = p; } catch (_) {}
+  return {
+    id: rec.id,
+    orderRef: f['Order ID'] || rec.id,
+    bakerName: f['Baker Name'] || 'Baker',
+    bakerEmail: normEmail(f['Baker Email']),
+    customerEmail: normEmail(f['Customer Email']),
+    menuItem: f['Menu Item'] || '',
+    addOns,
+    itemSubtotal: numOrNull(f['Item Subtotal']),
+    serviceFee: numOrNull(f['Service Fee']),
+    orderTotal: numOrNull(f['Order Total']),
+    pickupDate: f['Pick Up Date'] || null,
+    status: f['Order Status'] || 'New',
+    notes: f['Notes'] || null,
+    ratingLeftByCustomer: f['Rating Left by Customer'] === true,
+    customerRatingOfBaker: numOrNull(f['Customer Rating of Baker'])
+  };
+}
+
 module.exports = {
   toList,
   firstAttachmentUrl,
+  numOrNull,
   publicBakerFromRecord,
   publicBakerFromMock,
   publicMenuItemFromRecord,
   publicMenuItemFromMock,
-  publicReviewFromRecord
+  publicReviewFromRecord,
+  customerOrderFromRecord
 };

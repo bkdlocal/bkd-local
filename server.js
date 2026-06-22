@@ -32,6 +32,7 @@ const { CustomerStore, customerPublic } = require('./server/customers');
 const publicSite = require('./server/public-site');
 const publicData = require('./server/public-data');
 const orderFlow = require('./server/order-flow');
+const customerSite = require('./server/customer-site');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = getSessionSecret();
@@ -49,6 +50,7 @@ const MODE = airtable ? 'airtable' : 'mock';
 const customers = new CustomerStore(airtable);
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 const SERVICE_FEE = 1.5; // Phase 1 flat customer service fee, shown on the order request.
+const mockOrders = []; // mock-mode customer order store (in-memory)
 
 const app = express();
 app.set('trust proxy', true);
@@ -1055,8 +1057,10 @@ async function loadBakerOpenDates(baker) {
 // add select options). Prefer Pending; fall back to New if Airtable rejects it.
 async function createOrderRecord(fields) {
   if (MODE === 'mock') {
-    console.log('[order:mock] would create order:', JSON.stringify(fields));
-    return { id: 'mock-order' };
+    const id = 'mockord-' + (mockOrders.length + 1);
+    mockOrders.push({ id, fields: { ...fields, 'Order Status': fields['Order Status'] || 'New' } });
+    console.log('[order:mock] created', id, JSON.stringify(fields));
+    return { id };
   }
   try {
     return await airtable.create('Orders', { ...fields, 'Order Status': 'Pending' });
@@ -1152,6 +1156,148 @@ app.post('/api/orders/request', requireCustomerAuth, async (req, res, next) => {
     // Baker notification: no channel is wired yet (email is stubbed). Log for now.
     console.log(`[order] request for ${baker.email} from ${req.customer.email}: ${item.name} x${quantity}, subtotal $${itemSubtotal}, service $${SERVICE_FEE}, total $${orderTotal}`);
     res.json({ ok: true, itemSubtotal, serviceFee: SERVICE_FEE, orderTotal });
+  } catch (e) { next(e); }
+});
+
+// ── Customer account screens (spec 6.6 / 6.7 / 6.8) ─────────────────────────
+
+async function loadCustomerOrders(email) {
+  let recs;
+  if (MODE === 'mock') {
+    recs = mockOrders.filter(o => normEmail(o.fields['Customer Email']) === email);
+  } else {
+    recs = await airtable.list('Orders', {
+      filterByFormula: `LOWER(TRIM({Customer Email})) = '${escapeFormula(email)}'`
+    });
+  }
+  const orders = recs.map(publicData.customerOrderFromRecord);
+  orders.sort((a, b) =>
+    String(b.pickupDate || '').localeCompare(String(a.pickupDate || '')) ||
+    String(b.orderRef || '').localeCompare(String(a.orderRef || '')));
+  return orders;
+}
+
+async function loadCustomerOrder(email, orderId) {
+  let rec;
+  if (MODE === 'mock') {
+    rec = mockOrders.find(o => o.id === orderId) || null;
+  } else {
+    rec = await airtable.findById('Orders', orderId);
+  }
+  if (!rec) return null;
+  const o = publicData.customerOrderFromRecord(rec);
+  if (o.customerEmail !== email) return null; // only the owner can view
+  return o;
+}
+
+async function loadBakerLite(email) {
+  if (!email) return null;
+  if (MODE === 'mock') {
+    return { id: mock.baker.id, businessName: mock.baker.businessName, photo: null, pickupAddress: mock.baker.pickupLocation || null };
+  }
+  const rec = await airtable.findOne('Baker Profiles', {
+    filterByFormula: `LOWER(TRIM({Email})) = '${escapeFormula(email)}'`
+  });
+  if (!rec) return null;
+  const pb = publicData.publicBakerFromRecord(rec);
+  return { id: pb.id, businessName: pb.businessName, photo: pb.photo, pickupAddress: rec.fields['Exact Pick-up Address'] || null };
+}
+
+async function enrichOrdersWithBaker(orders) {
+  const cache = new Map();
+  for (const o of orders) {
+    if (!cache.has(o.bakerEmail)) cache.set(o.bakerEmail, await loadBakerLite(o.bakerEmail));
+    const b = cache.get(o.bakerEmail);
+    o.bakerId = b ? b.id : null;
+    o.bakerPhoto = b ? b.photo : null;
+  }
+  return orders;
+}
+
+function requireCustomerPage(req, res) {
+  if (!req.customer) { res.redirect('/login?redirect=' + encodeURIComponent(req.originalUrl)); return false; }
+  return true;
+}
+
+app.get('/customer/profile', async (req, res, next) => {
+  try {
+    if (!requireCustomerPage(req, res)) return;
+    const rec = await customers.findByEmail(req.customer.email);
+    if (!rec) return res.redirect('/login');
+    const orders = await enrichOrdersWithBaker(await loadCustomerOrders(req.customer.email));
+    res.type('html').send(customerSite.renderCustomerProfile({ customer: customerPublic(rec), orders }));
+  } catch (e) { next(e); }
+});
+
+app.get('/customer/orders', async (req, res, next) => {
+  try {
+    if (!requireCustomerPage(req, res)) return;
+    const orders = await enrichOrdersWithBaker(await loadCustomerOrders(req.customer.email));
+    res.type('html').send(customerSite.renderPastOrders({ orders }));
+  } catch (e) { next(e); }
+});
+
+app.get('/customer/orders/:orderId', async (req, res, next) => {
+  try {
+    if (!requireCustomerPage(req, res)) return;
+    const order = await loadCustomerOrder(req.customer.email, req.params.orderId);
+    if (!order) return res.status(404).type('html').send(publicSite.renderNotFound());
+    const baker = await loadBakerLite(order.bakerEmail);
+    res.type('html').send(customerSite.renderOrderStatus({ order, baker }));
+  } catch (e) { next(e); }
+});
+
+app.patch('/api/customer/profile', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const rec = await customers.findByEmail(req.customer.email);
+    if (!rec) return res.status(404).json({ error: 'Account not found.' });
+    const b = req.body || {};
+    const fields = {};
+    if (b.firstName !== undefined) fields['First Name'] = String(b.firstName).trim();
+    if (b.lastName !== undefined) fields['Last Name'] = String(b.lastName).trim();
+    if (b.city !== undefined) fields['City'] = String(b.city).trim();
+    if (Array.isArray(b.occasionTags)) {
+      const allowed = new Set(customerSite.OCCASION_CHOICES);
+      fields['Occasion Tags'] = b.occasionTags.filter(t => allowed.has(t));
+    }
+    const updated = await customers.update(rec.id, fields);
+    res.json({ ok: true, customer: customerPublic(updated) });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/customer/profile/photo', requireCustomerAuth, photoUpload.single('photo'), async (req, res, next) => {
+  try {
+    if (!cloudinary.isConfigured()) return res.status(503).json({ error: 'Photo uploads are not configured.' });
+    if (!req.file) return res.status(400).json({ error: 'No photo uploaded.' });
+    const rec = await customers.findByEmail(req.customer.email);
+    if (!rec) return res.status(404).json({ error: 'Account not found.' });
+    const result = await cloudinary.uploadImage(req.file.buffer, { filename: req.file.originalname });
+    await customers.update(rec.id, { 'Profile Photo URL': result.url });
+    res.json({ ok: true, url: result.url });
+  } catch (e) { next(e); }
+});
+
+// One-time customer rating of the baker after fulfilment. Storing the rating is
+// done here; recalculating the baker's aggregate average is deferred to Batch E.
+app.post('/api/orders/:orderId/rate', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const order = await loadCustomerOrder(req.customer.email, req.params.orderId);
+    if (!order) return res.status(404).json({ error: 'Order not found.' });
+    if (customerSite.normalizeStatus(order.status) !== 'Fulfilled') {
+      return res.status(400).json({ error: 'You can rate once the order is complete.' });
+    }
+    if (order.ratingLeftByCustomer) return res.status(409).json({ error: 'You already rated this order.' });
+    const rating = parseInt(req.body && req.body.rating, 10);
+    if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ error: 'Please choose 1 to 5 stars.' });
+
+    if (MODE === 'mock') {
+      const recM = mockOrders.find(o => o.id === order.id);
+      if (recM) { recM.fields['Customer Rating of Baker'] = rating; recM.fields['Rating Left by Customer'] = true; }
+    } else {
+      await airtable.update('Orders', order.id, { 'Customer Rating of Baker': rating, 'Rating Left by Customer': true });
+    }
+    console.log(`[rating] ${req.customer.email} rated baker ${order.bakerEmail} ${rating}★ on order ${order.id} (aggregate recalc deferred to Batch E)`);
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 

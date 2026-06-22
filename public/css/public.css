@@ -375,6 +375,99 @@ textarea {
 .auth-switch { text-align: center; font-size: 14px; color: var(--mauve); margin: 18px 0 0; }
 .auth-switch a { color: var(--berry); font-weight: 500; }
 
+/* ── Customer account screens ───────────────────────────────── */
+.cust-page { max-width: 620px; margin: 0 auto; padding-bottom: 48px; }
+.cust-page h1 { font-size: 26px; margin: 8px 0 18px; }
+.cust-tabs { display: flex; gap: 8px; margin: 16px 0 24px; }
+.cust-tabs a { padding: 9px 18px; border-radius: 999px; font-size: 14px; color: var(--mauve); border: 1px solid var(--line); }
+.cust-tabs a.active { background: var(--berry); color: #fff; border-color: var(--berry); }
+
+/* Profile */
+.profile-top { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
+.cust-avatar {
+  position: relative; width: 96px; height: 96px; border-radius: 999px; flex-shrink: 0;
+  overflow: hidden; cursor: pointer; background: var(--tile-grad);
+  display: flex; align-items: center; justify-content: center;
+}
+.cust-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-initial { font-size: 38px; font-weight: 500; color: #fff; }
+.avatar-edit { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(58,46,63,0.6); color: #fff; font-size: 11px; text-align: center; padding: 3px 0; }
+.cust-avatar.uploading { opacity: 0.6; }
+.profile-fields { flex: 1; min-width: 240px; }
+.two-col { display: flex; gap: 12px; }
+.two-col .field { flex: 1; }
+.profile-fields .field input {
+  width: 100%; font-family: inherit; font-size: 15px; color: var(--ink);
+  border: 1px solid var(--mauve-soft); border-radius: 12px; padding: 10px 14px;
+}
+.readonly { color: var(--mauve); padding: 10px 0; font-size: 15px; }
+.save-state { color: var(--mint-ink); font-size: 14px; margin-left: 10px; }
+
+.tag-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag-chip { cursor: pointer; border: 1px solid var(--mauve-soft); color: var(--mauve); padding: 7px 14px; border-radius: 999px; font-size: 13px; }
+.tag-chip input { display: none; }
+.tag-chip.on { background: #fbe8f0; border-color: var(--berry); color: var(--berry); }
+
+.rating-display { display: flex; align-items: center; gap: 10px; }
+.rating-stars { color: var(--berry); letter-spacing: 2px; font-size: 20px; }
+.rating-num { font-weight: 500; font-size: 18px; }
+.rating-count { color: var(--mauve); }
+.rating-empty { color: var(--mauve); font-size: 14px; }
+
+.mini-orders { display: flex; flex-direction: column; gap: 10px; }
+.mini-order { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 16px; }
+.mini-order-name { font-weight: 500; }
+.mini-order-sub { color: var(--mauve); font-size: 13px; }
+
+/* Order list (past orders) */
+.order-list { display: flex; flex-direction: column; gap: 14px; }
+.order-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+.order-main { display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0; }
+.row-thumb { width: 56px; height: 56px; border-radius: 12px; background-size: cover; background-position: center; flex-shrink: 0; background-color: #eadcf0; }
+.row-thumb-empty { background: var(--tile-grad); display: flex; align-items: center; justify-content: center; font-size: 26px; }
+.order-info { display: flex; flex-direction: column; min-width: 0; }
+.order-baker { font-weight: 500; }
+.order-item { color: var(--ink); font-size: 14px; }
+.order-date { color: var(--mauve); font-size: 13px; }
+.order-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.order-total { font-weight: 500; }
+.order-details-link { color: var(--berry); font-size: 13px; }
+
+/* Status badges */
+.status-badge { font-size: 12px; font-weight: 500; padding: 4px 11px; border-radius: 999px; display: inline-block; }
+.status-pending { background: #efe6fb; color: #6b4fa0; }
+.status-confirmed { background: #e2f0fb; color: #2f6fa0; }
+.status-fulfilled { background: var(--mint-bg); color: var(--mint-ink); }
+.status-disputed { background: #fdeecf; color: #9a6a1a; }
+.status-cancelled { background: #f0e7ec; color: var(--mauve); }
+
+/* Order status page */
+.order-status-page .from-baker { margin-top: -10px; margin-bottom: 16px; }
+.status-banner { border-radius: 14px; padding: 14px 18px; font-size: 15px; margin-bottom: 20px; }
+.status-banner.status-pending { background: #efe6fb; color: #5a3f8f; }
+.status-banner.status-confirmed { background: #e2f0fb; color: #2a6190; }
+.status-banner.status-fulfilled { background: var(--mint-bg); color: var(--mint-ink); }
+.status-banner.status-disputed { background: #fdeecf; color: #8a5e16; }
+.status-banner.status-cancelled { background: #f0e7ec; color: var(--mauve); }
+
+.timeline { display: flex; gap: 0; margin: 8px 0 24px; }
+.tl-step { flex: 1; text-align: center; position: relative; color: var(--mauve); font-size: 12px; }
+.tl-step .tl-dot { width: 14px; height: 14px; border-radius: 999px; background: var(--line); display: block; margin: 0 auto 6px; }
+.tl-step.done .tl-dot { background: var(--berry); }
+.tl-step.current .tl-label { color: var(--berry); font-weight: 500; }
+.tl-step::before { content: ''; position: absolute; top: 6px; left: -50%; width: 100%; height: 2px; background: var(--line); z-index: -1; }
+.tl-step:first-child::before { display: none; }
+.tl-step.done::before { background: var(--berry); }
+
+.star-input { display: flex; gap: 6px; font-size: 32px; color: var(--berry); margin: 10px 0 16px; }
+.star-input .star { background: none; border: none; cursor: pointer; color: var(--berry); font-size: 32px; line-height: 1; padding: 0; }
+.status-actions { display: flex; gap: 12px; margin-top: 26px; }
+.status-actions .btn { flex: 1; }
+
+@media (max-width: 640px) {
+  .two-col { flex-direction: column; gap: 0; }
+}
+
 /* Footer */
 .site-footer { border-top: 1px solid var(--line); margin-top: 48px; padding: 32px 24px; text-align: center; color: var(--mauve); font-size: 14px; }
 .footer-links { margin-top: 6px; }
