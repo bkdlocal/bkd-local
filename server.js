@@ -914,11 +914,19 @@ app.get('/bakers', async (req, res, next) => {
     const types = [...new Set(all.flatMap(b => b.productTypes))].sort();
     const city = req.query.city ? String(req.query.city) : '';
     const type = req.query.type ? String(req.query.type) : '';
+    const q = req.query.q ? String(req.query.q).trim() : '';
     let bakers = all;
+    if (q) {
+      const ql = q.toLowerCase();
+      bakers = bakers.filter(b =>
+        [b.businessName, b.bio, ...(b.productTypes || []), ...(b.specialtyTags || [])]
+          .filter(Boolean).join(' ').toLowerCase().includes(ql)
+      );
+    }
     if (city) bakers = bakers.filter(b => b.city === city);
     if (type) bakers = bakers.filter(b => b.productTypes.includes(type));
     res.type('html').send(publicSite.renderDirectory({
-      bakers, cities, types, filters: { city, type }, total: all.length
+      bakers, cities, types, filters: { city, type, q }, total: all.length
     }));
   } catch (e) { next(e); }
 });

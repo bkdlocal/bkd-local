@@ -28,6 +28,9 @@ function publicBakerFromRecord(rec) {
     instagram: f['Instagram Handle'] || null,
     pickupWindows: f['Pick-up Windows'] || null,
     rating: typeof f['Baker Rating'] === 'number' ? f['Baker Rating'] : null,
+    verified: f['Platform Tier'] === 'Bkd Verified',
+    foundingBaker: f['Badge'] === 'Founding Baker',
+    acceptingOrders: f['Accepting Orders'] === true,
     photo: firstAttachmentUrl(f['Profile Photo']),
     gallery: [f['Gallery Image 1'], f['Gallery Image 2'], f['Gallery Image 3']]
       .map(firstAttachmentUrl)
@@ -49,6 +52,9 @@ function publicBakerFromMock(b) {
     instagram: b.instagram || null,
     pickupWindows: b.pickupLocation || null,
     rating: typeof b.rating === 'number' ? b.rating : 4.9,
+    verified: true,
+    foundingBaker: b.tier === 'Charter' || b.badge === 'Verified',
+    acceptingOrders: b.acceptingOrders !== false,
     photo: null,
     gallery: []
   };
@@ -67,9 +73,12 @@ function publicMenuItemFromRecord(rec) {
 }
 
 function publicMenuItemFromMock(m) {
+  const detail = (m.typeFields && (m.typeFields.flavors || m.typeFields.finish)) || null;
+  const soldBy = m.soldBy ? m.soldBy.charAt(0).toUpperCase() + m.soldBy.slice(1) : null;
+  const description = [soldBy, detail].filter(Boolean).join(' · ') || null;
   return {
     name: m.name || '',
-    description: (m.typeFields && (m.typeFields.flavors || m.typeFields.finish)) || null,
+    description,
     price: typeof m.price === 'number' ? m.price : (parseFloat(m.price) || null),
     category: m.category || null,
     coverPhoto: null,

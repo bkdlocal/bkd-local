@@ -1,3 +1,5 @@
+const REGION = 'West Tennessee';
+
 function esc(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;')
@@ -14,27 +16,88 @@ function instagramUrl(handle) {
   return `https://instagram.com/${h.replace(/^@/, '')}`;
 }
 
-function ratingBadge(rating) {
-  if (rating == null) return '';
-  return `<span class="rating">★ ${esc(rating.toFixed(1))}</span>`;
+// "Jackson, TN " -> "Jackson"
+function shortCity(city) {
+  if (!city) return '';
+  return String(city).split(',')[0].trim();
 }
 
-function avatar(baker, cls) {
+const SEARCH_ICON = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+
+function badges(baker) {
+  let out = '';
+  if (baker.verified) out += `<span class="badge badge-verified">✓ Verified</span>`;
+  if (baker.foundingBaker) out += `<span class="badge badge-founding">Founding Baker</span>`;
+  return out;
+}
+
+function cardPhoto(baker) {
+  const inner = baker.verified ? `<span class="card-badge badge-verified">✓ Verified</span>` : '';
+  const loc = shortCity(baker.city);
+  const locTag = loc ? `<span class="card-loc">${esc(loc)}</span>` : '';
   if (baker.photo) {
-    return `<img class="${cls} avatar-img" src="${esc(baker.photo)}" alt="${esc(baker.businessName)}" loading="lazy">`;
+    return `<div class="card-photo" style="background-image:url('${esc(baker.photo)}')">${inner}${locTag}</div>`;
   }
-  const initial = (baker.businessName || '?').trim().charAt(0).toUpperCase();
-  return `<div class="${cls} avatar-letter">${esc(initial)}</div>`;
-}
-
-function locationLine(baker) {
-  const parts = [baker.neighborhood, baker.city].filter(Boolean);
-  return parts.join(' · ');
+  return `<div class="card-photo card-photo-empty">${inner}${locTag}<span class="card-photo-emoji">🧁</span></div>`;
 }
 
 function chips(items, cls) {
   if (!items || !items.length) return '';
   return `<div class="chips">${items.map(t => `<span class="chip ${cls || ''}">${esc(t)}</span>`).join('')}</div>`;
+}
+
+function bakerCard(baker) {
+  const taking = baker.acceptingOrders
+    ? `<span class="taking"><span class="dot"></span>Taking orders</span>`
+    : `<span class="taking taking-off">Currently paused</span>`;
+  return `<a class="baker-card" href="/bakers/${esc(baker.id)}">
+    ${cardPhoto(baker)}
+    <div class="card-body">
+      <h3>${esc(baker.businessName)}</h3>
+      ${baker.bio ? `<p class="card-bio">${esc(baker.bio)}</p>` : ''}
+      ${chips(baker.productTypes.slice(0, 3))}
+      <div class="card-foot">
+        ${taking}
+        <span class="btn btn-primary btn-sm">View baker</span>
+      </div>
+    </div>
+  </a>`;
+}
+
+function header() {
+  return `<header class="site-header">
+    <a class="brand" href="/">bkd<span>.local</span></a>
+    <nav class="site-nav">
+      <a href="/#how">How it works</a>
+      <a href="/app">For bakers</a>
+      <a class="nav-cta" href="/app">Are you a baker?</a>
+    </nav>
+  </header>`;
+}
+
+function footer() {
+  return `<footer class="site-footer">
+    <div>© Bkd Local — local bakers, baked to order</div>
+    <div class="footer-links"><a href="/bakers">Browse bakers</a> · <a href="/app">For bakers</a></div>
+  </footer>`;
+}
+
+function searchBar(q) {
+  return `<form class="searchbar" method="get" action="/bakers">
+    <span class="search-icon">${SEARCH_ICON}</span>
+    <input type="search" name="q" value="${esc(q || '')}" placeholder="Search by treat, baker name, or occasion…" aria-label="Search bakers">
+  </form>`;
+}
+
+function hero({ q, compact } = {}) {
+  return `<section class="hero${compact ? ' hero-compact' : ''}">
+    <div class="hero-inner">
+      <div class="hero-eyebrow">${esc(REGION.toUpperCase())}</div>
+      <h1>Find an artisan baker <span>near you</span></h1>
+      <p class="hero-sub">Every baker is verified. Prices are upfront. Payment is protected.</p>
+      ${searchBar(q)}
+    </div>
+  </section>`;
 }
 
 function layout({ title, description, body }) {
@@ -43,7 +106,7 @@ function layout({ title, description, body }) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="theme-color" content="#FDF6F9">
+<meta name="theme-color" content="#F3C9DD">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description || '')}">
 <meta property="og:title" content="${esc(title)}">
@@ -51,55 +114,21 @@ function layout({ title, description, body }) {
 <meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/public.css">
 </head>
 <body>
-<header class="site-header">
-  <a class="brand" href="/">Bkd<span>Local</span></a>
-  <nav class="site-nav">
-    <a href="/bakers">Find a baker</a>
-    <a class="nav-cta" href="/app">Baker login</a>
-  </nav>
-</header>
+${header()}
 <main>${body}</main>
-<footer class="site-footer">
-  <div>© Bkd Local — local bakers, baked to order</div>
-  <div class="footer-links"><a href="/bakers">Browse bakers</a> · <a href="/app">For bakers</a></div>
-</footer>
+${footer()}
 </body>
 </html>`;
-}
-
-function bakerCard(baker) {
-  return `<a class="baker-card" href="/bakers/${esc(baker.id)}">
-    ${avatar(baker, 'card-avatar')}
-    <div class="card-body">
-      <div class="card-top">
-        <h3>${esc(baker.businessName)}</h3>
-        ${ratingBadge(baker.rating)}
-      </div>
-      ${locationLine(baker) ? `<div class="card-location">${esc(locationLine(baker))}</div>` : ''}
-      ${baker.bio ? `<p class="card-bio">${esc(baker.bio)}</p>` : ''}
-      ${chips(baker.productTypes.slice(0, 4))}
-    </div>
-  </a>`;
 }
 
 function renderHome({ bakers }) {
   const featured = bakers.slice(0, 6);
   const body = `
-  <section class="hero">
-    <div class="hero-inner">
-      <h1>Find a local baker for your next celebration</h1>
-      <p>Cakes, cookies, macarons and more — made to order by independent bakers in your area.</p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="/bakers">Browse bakers</a>
-        <a class="btn btn-ghost" href="/app">I'm a baker</a>
-      </div>
-    </div>
-  </section>
-
+  ${hero({})}
   <section class="section">
     <div class="section-head">
       <h2>Featured bakers</h2>
@@ -109,77 +138,83 @@ function renderHome({ bakers }) {
       ? `<div class="baker-grid">${featured.map(bakerCard).join('')}</div>`
       : `<p class="empty">No bakers are live just yet — check back soon.</p>`}
   </section>
-
-  <section class="section how">
+  <section class="section how" id="how">
     <h2>How it works</h2>
     <div class="how-grid">
-      <div class="how-step"><span class="how-num">1</span><h4>Browse</h4><p>Explore local bakers and their menus.</p></div>
+      <div class="how-step"><span class="how-num">1</span><h4>Browse</h4><p>Explore verified local bakers and their menus.</p></div>
       <div class="how-step"><span class="how-num">2</span><h4>Request</h4><p>Tell a baker what you need for your occasion.</p></div>
       <div class="how-step"><span class="how-num">3</span><h4>Pick up</h4><p>Grab your order fresh on pickup day.</p></div>
     </div>
   </section>`;
   return layout({
-    title: 'Bkd Local — Find a local baker',
-    description: 'Discover independent local bakers for cakes, cookies, macarons and more. Made to order in your area.',
+    title: 'Bkd Local — Find an artisan baker near you',
+    description: `Discover verified local bakers in ${REGION} for cakes, cookies, macarons and more. Made to order.`,
     body
   });
 }
 
+function pill(label, href, active) {
+  return `<a class="pill${active ? ' pill-active' : ''}" href="${esc(href)}">${esc(label)}</a>`;
+}
+
+function buildQuery(params) {
+  const parts = Object.entries(params)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`);
+  return parts.length ? `?${parts.join('&')}` : '';
+}
+
 function renderDirectory({ bakers, cities, types, filters, total }) {
-  const cityOptions = ['<option value="">All cities</option>']
-    .concat(cities.map(c => `<option value="${esc(c)}"${filters.city === c ? ' selected' : ''}>${esc(c)}</option>`))
+  const q = filters.q || '';
+  const typePills = [pill('All treats', `/bakers${buildQuery({ q })}`, !filters.type && !filters.city)]
+    .concat(types.map(t => pill(t, `/bakers${buildQuery({ q, type: t })}`, filters.type === t)))
+    .concat(cities.map(c => pill(shortCity(c), `/bakers${buildQuery({ q, city: c })}`, filters.city === c)))
     .join('');
-  const typeOptions = ['<option value="">All treats</option>']
-    .concat(types.map(t => `<option value="${esc(t)}"${filters.type === t ? ' selected' : ''}>${esc(t)}</option>`))
-    .join('');
-  const active = !!(filters.city || filters.type);
   const body = `
-  <section class="dir-head">
-    <h1>Find a baker</h1>
-    <form class="filters" method="get" action="/bakers">
-      <select name="city" onchange="this.form.submit()">${cityOptions}</select>
-      <select name="type" onchange="this.form.submit()">${typeOptions}</select>
-      ${active ? `<a class="clear-filters" href="/bakers">Clear</a>` : ''}
-    </form>
-    <div class="result-count">${bakers.length} of ${total} baker${total === 1 ? '' : 's'}</div>
+  ${hero({ q, compact: true })}
+  <section class="dir-controls">
+    <div class="pills">${typePills}</div>
+    <div class="result-count"><strong>${bakers.length} artisan baker${bakers.length === 1 ? '' : 's'}</strong> in ${esc(REGION)}</div>
   </section>
   <section class="section">
     ${bakers.length
       ? `<div class="baker-grid">${bakers.map(bakerCard).join('')}</div>`
-      : `<p class="empty">No bakers match those filters. <a href="/bakers">Clear filters</a></p>`}
+      : `<p class="empty">No bakers match your search. <a href="/bakers">Clear filters</a></p>`}
   </section>`;
   return layout({
     title: 'Find a baker — Bkd Local',
-    description: 'Browse local bakers by city and treat type.',
+    description: `Browse ${total} verified local bakers in ${REGION} by treat and city.`,
     body
   });
 }
 
-function stars(rating) {
-  const r = Math.round(Number(rating) || 0);
-  return '★★★★★'.slice(0, r) + '☆☆☆☆☆'.slice(0, 5 - r);
-}
-
 function menuSection(menu) {
   if (!menu || !menu.length) return '';
-  const cards = menu.map(m => `
-    <div class="menu-item">
-      ${m.coverPhoto
-        ? `<img class="menu-photo" src="${esc(m.coverPhoto)}" alt="${esc(m.name)}" loading="lazy">`
-        : `<div class="menu-photo menu-photo-empty">${esc(m.emoji || '🧁')}</div>`}
-      <div class="menu-info">
-        <div class="menu-top">
-          <h4>${esc(m.name)}</h4>
-          ${m.price != null ? `<span class="menu-price">$${esc(Number(m.price).toFixed(0))}</span>` : ''}
-        </div>
-        ${m.description ? `<p>${esc(m.description)}</p>` : ''}
+  const rows = menu.map(m => `
+    <div class="menu-row">
+      <div class="menu-text">
+        <div class="menu-name">${esc(m.name)}</div>
+        ${m.description ? `<div class="menu-sub">${esc(m.description)}</div>` : ''}
       </div>
+      ${m.price != null ? `<div class="menu-price">$${esc(Number(m.price).toFixed(0))}</div>` : ''}
     </div>`).join('');
-  return `<section class="profile-section"><h2>Menu</h2><div class="menu-list">${cards}</div></section>`;
+  return `<section class="profile-section"><div class="section-label">Menu</div><div class="menu-rows">${rows}</div></section>`;
+}
+
+function portfolioSection(gallery) {
+  const tiles = [];
+  for (let i = 0; i < 4; i++) {
+    const url = gallery && gallery[i];
+    tiles.push(url
+      ? `<div class="portfolio-tile" style="background-image:url('${esc(url)}')"></div>`
+      : `<div class="portfolio-tile portfolio-empty"></div>`);
+  }
+  return `<section class="profile-section"><div class="section-label">Portfolio</div><div class="portfolio">${tiles.join('')}</div></section>`;
 }
 
 function reviewsSection(reviews) {
   if (!reviews || !reviews.length) return '';
+  const stars = r => '★★★★★'.slice(0, Math.round(Number(r) || 0)) + '☆☆☆☆☆'.slice(0, 5 - Math.round(Number(r) || 0));
   const items = reviews.map(r => `
     <div class="review">
       <div class="review-head">
@@ -188,42 +223,38 @@ function reviewsSection(reviews) {
       </div>
       ${r.text ? `<p>${esc(r.text)}</p>` : ''}
     </div>`).join('');
-  return `<section class="profile-section"><h2>Reviews</h2><div class="reviews">${items}</div></section>`;
-}
-
-function gallerySection(gallery) {
-  if (!gallery || !gallery.length) return '';
-  return `<section class="profile-section"><div class="gallery">${
-    gallery.map(url => `<img src="${esc(url)}" alt="" loading="lazy">`).join('')
-  }</div></section>`;
+  return `<section class="profile-section"><div class="section-label">Reviews</div><div class="reviews">${items}</div></section>`;
 }
 
 function renderProfile({ baker, menu, reviews }) {
   const ig = instagramUrl(baker.instagram);
+  const bannerStyle = baker.photo
+    ? ` style="background-image:url('${esc(baker.photo)}')"`
+    : '';
+  const loc = [shortCity(baker.city) ? `${esc(baker.city)}` : '', 'Pickup available'].filter(Boolean).join(' · ');
   const body = `
   <nav class="crumbs"><a href="/bakers">← All bakers</a></nav>
-  <section class="profile-header">
-    ${avatar(baker, 'profile-avatar')}
-    <div class="profile-meta">
-      <h1>${esc(baker.businessName)}</h1>
-      ${locationLine(baker) ? `<div class="profile-location">${esc(locationLine(baker))}</div>` : ''}
-      <div class="profile-rating">${baker.rating != null ? `${stars(baker.rating)} <span>${esc(baker.rating.toFixed(1))}</span>` : ''}</div>
-      ${chips(baker.specialtyTags, 'chip-tag')}
-      ${ig ? `<a class="btn btn-primary profile-cta" href="${esc(ig)}" target="_blank" rel="noopener">Contact on Instagram</a>` : ''}
+  <article class="profile-card">
+    <div class="profile-banner${baker.photo ? '' : ' profile-banner-empty'}"${bannerStyle}>${baker.photo ? '' : '<span class="banner-emoji">🍪</span>'}</div>
+    <div class="profile-head">
+      <div class="profile-headline">
+        <h1>${esc(baker.businessName)}</h1>
+        <div class="profile-badges">${badges(baker)}</div>
+      </div>
+      <div class="profile-location">📍 ${esc(loc)}</div>
+      ${baker.bio ? `<p class="profile-bio">${esc(baker.bio)}</p>` : ''}
+      ${menuSection(menu)}
+      ${portfolioSection(baker.gallery)}
+      ${reviewsSection(reviews)}
+      <div class="profile-actions">
+        <a class="btn btn-primary btn-block" href="${ig ? esc(ig) : '#'}"${ig ? ' target="_blank" rel="noopener"' : ''}>Request an order</a>
+        ${ig ? `<a class="btn btn-outline" href="${esc(ig)}" target="_blank" rel="noopener">Message</a>` : ''}
+      </div>
+      <div class="custom-quote">Want something more intricate? ${ig ? `<a href="${esc(ig)}" target="_blank" rel="noopener">Message this baker for a custom quote.</a>` : 'Message this baker for a custom quote.'}</div>
     </div>
-  </section>
-  ${baker.bio ? `<section class="profile-section"><h2>About</h2><p class="profile-bio">${esc(baker.bio)}</p></section>` : ''}
-  ${baker.productTypes.length ? `<section class="profile-section"><h2>What I bake</h2>${chips(baker.productTypes)}</section>` : ''}
-  ${gallerySection(baker.gallery)}
-  ${menuSection(menu)}
-  ${baker.pickupWindows ? `<section class="profile-section"><h2>Pickup</h2><p>${esc(baker.pickupWindows)}</p></section>` : ''}
-  ${reviewsSection(reviews)}`;
-  const desc = baker.bio || `${baker.businessName} — local baker${baker.city ? ` in ${baker.city}` : ''} on Bkd Local.`;
-  return layout({
-    title: `${baker.businessName} — Bkd Local`,
-    description: desc,
-    body
-  });
+  </article>`;
+  const desc = baker.bio || `${baker.businessName} — verified local baker${baker.city ? ` in ${shortCity(baker.city)}` : ''} on Bkd Local.`;
+  return layout({ title: `${baker.businessName} — Bkd Local`, description: desc, body });
 }
 
 function renderNotFound() {
