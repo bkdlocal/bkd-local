@@ -28,7 +28,7 @@ function publicBakerFromRecord(rec) {
     instagram: f['Instagram Handle'] || null,
     pickupWindows: f['Pick-up Windows'] || null,
     rating: typeof f['Baker Rating'] === 'number' ? f['Baker Rating'] : null,
-    verified: f['Platform Tier'] === 'Bkd Verified',
+    verified: f['Verified'] === true,
     foundingBaker: f['Badge'] === 'Founding Baker',
     acceptingOrders: f['Accepting Orders'] === true,
     photo: firstAttachmentUrl(f['Profile Photo']),
