@@ -24,6 +24,8 @@ const {
 } = require('./server/session');
 const mock = require('./server/mock-data');
 const { smartReply } = require('./server/anthropic');
+const cloudinary = require('./server/cloudinary');
+const multer = require('multer');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = getSessionSecret();
@@ -61,6 +63,15 @@ function httpError(status, message) {
   e.status = status;
   return e;
 }
+
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/^image\//.test(file.mimetype)) cb(null, true);
+    else cb(httpError(400, 'Only image files are allowed.'));
+  }
+});
 
 function requireAuth(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'Not logged in.' });
@@ -528,6 +539,30 @@ app.post('/api/messages/:id/smart-reply', requireAuth, async (req, res, next) =>
   } catch (e) { next(e); }
 });
 
+// ── Photo uploads ──────────────────────────────────────────────────────────
+
+app.post('/api/uploads/photo', requireAuth, photoUpload.single('photo'), async (req, res, next) => {
+  try {
+    await currentBaker(req);
+    if (!cloudinary.isConfigured()) {
+      return res.status(503).json({ error: 'Photo uploads are not configured.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No photo uploaded. Attach a file under the "photo" field.' });
+    }
+    const result = await cloudinary.uploadImage(req.file.buffer, {
+      filename: req.file.originalname
+    });
+    res.json({
+      ok: true,
+      url: result.url,
+      publicId: result.publicId,
+      width: result.width,
+      height: result.height
+    });
+  } catch (e) { next(e); }
+});
+
 // ── Price My Bakes ─────────────────────────────────────────────────────────
 
 app.get('/api/ingredients', requireAuth, async (req, res, next) => {
@@ -672,7 +707,8 @@ app.delete('/api/availability/slots/:id', requireAuth, async (req, res, next) =>
 
 app.use((err, req, res, next) => {
   console.error('[server]', err.message);
-  res.status(err.status || 500).json({ error: err.message || 'Server error' });
+  const status = err.status || (err.name === 'MulterError' ? 400 : 500);
+  res.status(status).json({ error: err.message || 'Server error' });
 });
 
 app.listen(PORT, () => {
