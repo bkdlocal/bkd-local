@@ -26,6 +26,9 @@ const mock = require('./server/mock-data');
 const { smartReply } = require('./server/anthropic');
 const cloudinary = require('./server/cloudinary');
 const multer = require('multer');
+const { hashPassword, verifyPassword, generateToken } = require('./server/passwords');
+const emailService = require('./server/email');
+const { CustomerStore, customerPublic } = require('./server/customers');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = getSessionSecret();
@@ -40,7 +43,11 @@ const airtable = !FORCE_MOCK && process.env.AIRTABLE_API_KEY && process.env.AIRT
   : null;
 const MODE = airtable ? 'airtable' : 'mock';
 
+const customers = new CustomerStore(airtable);
+const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
+
 const app = express();
+app.set('trust proxy', true);
 app.use(express.json({ limit: '1mb' }));
 
 app.use((req, res, next) => {
@@ -51,6 +58,14 @@ app.use((req, res, next) => {
     const age = Date.now() - payload.iat;
     if (age < SESSION_TTL_SECONDS * 1000) {
       req.user = { email: normEmail(payload.email) };
+    }
+  }
+
+  const customerPayload = verifySession(cookies.bkd_customer_session, SESSION_SECRET);
+  if (customerPayload && customerPayload.email && customerPayload.iat && customerPayload.role === 'customer') {
+    const age = Date.now() - customerPayload.iat;
+    if (age < SESSION_TTL_SECONDS * 1000) {
+      req.customer = { email: normEmail(customerPayload.email) };
     }
   }
   next();
@@ -75,6 +90,11 @@ const photoUpload = multer({
 
 function requireAuth(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'Not logged in.' });
+  next();
+}
+
+function requireCustomerAuth(req, res, next) {
+  if (!req.customer) return res.status(401).json({ error: 'Not logged in.' });
   next();
 }
 
@@ -124,6 +144,25 @@ function setSessionCookie(res, email) {
 
 function clearSessionCookie(res) {
   res.setHeader('Set-Cookie', buildCookie('bkd_session', '', {
+    maxAge: 0,
+    path: '/',
+    httpOnly: true,
+    sameSite: 'Lax'
+  }));
+}
+
+function setCustomerSessionCookie(res, email) {
+  const token = signSession({ email, role: 'customer', iat: Date.now() }, SESSION_SECRET);
+  res.setHeader('Set-Cookie', buildCookie('bkd_customer_session', token, {
+    maxAge: SESSION_TTL_SECONDS,
+    path: '/',
+    httpOnly: true,
+    sameSite: 'Lax'
+  }));
+}
+
+function clearCustomerSessionCookie(res) {
+  res.setHeader('Set-Cookie', buildCookie('bkd_customer_session', '', {
     maxAge: 0,
     path: '/',
     httpOnly: true,
@@ -536,6 +575,118 @@ app.post('/api/messages/:id/smart-reply', requireAuth, async (req, res, next) =>
       model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
     });
     res.json(result);
+  } catch (e) { next(e); }
+});
+
+// ── Customer auth ──────────────────────────────────────────────────────────
+
+function isValidEmail(s) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || ''));
+}
+
+async function issueVerification(req, customerId, email) {
+  const token = generateToken();
+  const expires = new Date(Date.now() + VERIFY_TTL_MS).toISOString();
+  await customers.update(customerId, {
+    'Verification Token': token,
+    'Verification Token Expires': expires,
+    'Email Verified': false
+  });
+  const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const link = `${base}/api/customer/verify?token=${encodeURIComponent(token)}`;
+  await emailService.sendVerificationEmail({ to: email, link });
+  return link;
+}
+
+app.post('/api/customer/signup', async (req, res, next) => {
+  try {
+    const email = normEmail(req.body?.email);
+    const password = String(req.body?.password || '');
+    const firstName = String(req.body?.firstName || '').trim();
+    const lastName = String(req.body?.lastName || '').trim();
+    if (!isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (!firstName) return res.status(400).json({ error: 'First name is required.' });
+
+    const existing = await customers.findByEmail(email);
+    if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
+
+    const rec = await customers.create({
+      'First Name': firstName,
+      'Last Name': lastName || undefined,
+      'Email': email,
+      'Phone': req.body?.phone || undefined,
+      'City': req.body?.city || undefined,
+      'Password Hash': hashPassword(password),
+      'Email Verified': false,
+      'Rating Count': 0,
+      'Account Created': new Date().toISOString().slice(0, 10)
+    });
+
+    await issueVerification(req, rec.id, email);
+    res.json({ ok: true, customer: customerPublic(rec), emailVerified: false });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/customer/login', async (req, res, next) => {
+  try {
+    const email = normEmail(req.body?.email);
+    const password = String(req.body?.password || '');
+    if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
+    const rec = await customers.findByEmail(email);
+    if (!rec || !verifyPassword(password, rec.fields['Password Hash'])) {
+      return res.status(401).json({ error: 'Incorrect email or password.' });
+    }
+    if (rec.fields['Email Verified'] !== true) {
+      return res.status(403).json({ error: 'Please verify your email before logging in. Check your inbox for the verification link.' });
+    }
+    setCustomerSessionCookie(res, email);
+    res.json({ ok: true, customer: customerPublic(rec) });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/customer/logout', (req, res) => {
+  clearCustomerSessionCookie(res);
+  res.json({ ok: true });
+});
+
+app.get('/api/customer/me', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const rec = await customers.findByEmail(req.customer.email);
+    if (!rec) return res.status(404).json({ error: 'Account not found.' });
+    res.json({ customer: customerPublic(rec) });
+  } catch (e) { next(e); }
+});
+
+app.get('/api/customer/verify', async (req, res, next) => {
+  try {
+    const token = String(req.query?.token || '');
+    if (!token) return res.status(400).json({ error: 'Missing verification token.' });
+    const rec = await customers.findByToken(token);
+    if (!rec) return res.status(400).json({ error: 'Invalid or already-used verification link.' });
+    const expires = rec.fields['Verification Token Expires'];
+    if (expires && Date.now() > new Date(expires).getTime()) {
+      return res.status(400).json({ error: 'Verification link has expired. Please request a new one.' });
+    }
+    await customers.update(rec.id, {
+      'Email Verified': true,
+      'Verification Token': null,
+      'Verification Token Expires': null
+    });
+    res.json({ ok: true, verified: true });
+  } catch (e) { next(e); }
+});
+
+app.post('/api/customer/resend-verification', async (req, res, next) => {
+  try {
+    const email = normEmail(req.body?.email);
+    if (!email) return res.status(400).json({ error: 'Email is required.' });
+    const rec = await customers.findByEmail(email);
+    // Respond generically either way so this can't be used to probe which emails are registered.
+    if (rec && rec.fields['Email Verified'] !== true) {
+      await issueVerification(req, rec.id, email);
+    }
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 
