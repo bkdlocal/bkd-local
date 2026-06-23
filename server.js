@@ -259,7 +259,15 @@ async function issueBakerSetPassword(req, rec, email) {
   await updateBakerAuth(rec, { 'Set Password Token': token, 'Set Password Token Expires': expires });
   const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
   const link = `${base}/auth/set-password?token=${encodeURIComponent(token)}`;
-  await emailService.sendSetPasswordEmail({ to: email, link });
+  try {
+    await emailService.sendSetPasswordEmail({ to: email, link });
+  } catch (e) {
+    // Roll back the token so a failed send never leaves a dangling, unusable
+    // token on the record. Clearing token fields is allowed by the guardrail;
+    // the Password Hash is never touched here.
+    await updateBakerAuth(rec, { 'Set Password Token': null, 'Set Password Token Expires': null });
+    throw e;
+  }
   return link;
 }
 
@@ -332,7 +340,16 @@ app.post('/api/auth/forgot-password', async (req, res, next) => {
   try {
     const email = normEmail(req.body?.email);
     const authRec = email ? await findBakerAuthRecord(email) : null;
-    if (authRec) await issueBakerSetPassword(req, authRec, email);
+    if (authRec) {
+      try {
+        await issueBakerSetPassword(req, authRec, email);
+      } catch (e) {
+        // Token already rolled back in issueBakerSetPassword. Surface a clean
+        // message instead of the raw provider error.
+        console.error('[set-password] could not send email:', e.message);
+        return res.status(502).json({ error: 'We could not send the email right now. Please try again in a minute.' });
+      }
+    }
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
