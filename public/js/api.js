@@ -61,6 +61,13 @@ const Api = {
     return this._handleRes(r, '/api/uploads/photo');
   },
 
+  async uploadBakerProfilePhoto(file) {
+    const fd = new FormData();
+    fd.append('photo', file);
+    const r = await fetch('/api/baker/profile/photo', { method: 'POST', body: fd });
+    return this._handleRes(r, '/api/baker/profile/photo');
+  },
+
   getMode()    { return this._get('/api/mode'); },
   getSession() { return this._get('/api/auth/me'); },
   login(email, password) { return this._post('/api/auth/login', { email, password }); },

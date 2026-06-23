@@ -1,4 +1,4 @@
-const { normEmail } = require('./airtable');
+const { normEmail, MENU_PHOTO_FIELDS } = require('./airtable');
 
 // Multi-selects come back as arrays from Airtable, but the mock baker stores
 // them as comma-separated strings. Normalize both to a clean array.
@@ -64,6 +64,7 @@ function publicBakerFromMock(b) {
 
 function publicMenuItemFromRecord(rec) {
   const f = rec.fields || {};
+  const photos = MENU_PHOTO_FIELDS.map(k => f[k]).filter(Boolean); // Cover + Portfolio 1-6, in order
   return {
     id: rec.id,
     name: f['Item Name'] || '',
@@ -71,6 +72,7 @@ function publicMenuItemFromRecord(rec) {
     price: typeof f['Price'] === 'number' ? f['Price'] : (parseFloat(f['Price']) || 0),
     category: f['Category'] || null,
     coverPhoto: f['Cover Photo URL'] || null,
+    photos,
     emoji: null,
     // Live Menu Items has no sold-per or add-ons columns yet (graceful degradation).
     soldPer: null,
@@ -96,7 +98,8 @@ function publicMenuItemFromMock(m) {
     description,
     price: typeof m.price === 'number' ? m.price : (parseFloat(m.price) || 0),
     category: m.category || null,
-    coverPhoto: null,
+    coverPhoto: (Array.isArray(m.photos) && m.photos[0]) || null,
+    photos: Array.isArray(m.photos) ? m.photos.filter(Boolean) : [],
     emoji: m.emoji || null,
     soldPer: m.soldBy || null,
     addOns: Array.isArray(m.addOns) ? m.addOns.map(normalizeAddOn) : []

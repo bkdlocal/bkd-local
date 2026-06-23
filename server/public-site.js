@@ -278,15 +278,24 @@ function menuSection(menu, bakerId) {
   return `<section class="profile-section"><div class="section-label">Menu</div><div class="menu-rows">${rows}</div></section>`;
 }
 
-function portfolioSection(gallery) {
-  const tiles = [];
-  for (let i = 0; i < 4; i++) {
-    const url = gallery && gallery[i];
-    tiles.push(url
-      ? `<div class="portfolio-tile" style="background-image:url('${esc(url)}')"></div>`
-      : `<div class="portfolio-tile portfolio-empty"></div>`);
+// Portfolio strip is derived from the baker's menu-item photos (no seed images):
+// one menu item -> that item's cover + portfolio photos, in order; two or more
+// items -> each item's cover photo. Hidden entirely when there are no photos.
+function portfolioPhotosFromMenu(menu) {
+  if (!menu || !menu.length) return [];
+  if (menu.length === 1) {
+    const m = menu[0];
+    const list = (m.photos && m.photos.length) ? m.photos : [m.coverPhoto];
+    return list.filter(Boolean);
   }
-  return `<section class="profile-section"><div class="section-label">Portfolio</div><div class="portfolio">${tiles.join('')}</div></section>`;
+  return menu.map(m => m.coverPhoto).filter(Boolean);
+}
+
+function portfolioSection(photos) {
+  const list = (photos || []).filter(Boolean);
+  if (!list.length) return '';
+  const tiles = list.map(url => `<div class="portfolio-tile" style="background-image:url('${esc(url)}')"></div>`).join('');
+  return `<section class="profile-section"><div class="section-label">Portfolio</div><div class="portfolio">${tiles}</div></section>`;
 }
 
 function reviewsSection(reviews) {
@@ -315,7 +324,7 @@ function renderProfile({ baker, menu, reviews, viewer }) {
   const body = `
   <nav class="crumbs"><a href="/bakers">← All bakers</a></nav>
   <article class="profile-card">
-    <div class="profile-banner${baker.photo ? '' : ' profile-banner-empty'}"${bannerStyle}>${baker.photo ? '' : '<span class="banner-emoji">🍪</span>'}</div>
+    <div class="profile-banner${baker.photo ? '' : ' profile-banner-empty'}"${bannerStyle}></div>
     <div class="profile-head">
       <div class="profile-headline">
         <h1>${esc(baker.businessName)}</h1>
@@ -325,7 +334,7 @@ function renderProfile({ baker, menu, reviews, viewer }) {
       ${ratingLine(baker)}
       ${baker.bio ? `<p class="profile-bio">${esc(baker.bio)}</p>` : ''}
       ${menuSection(menu, baker.id)}
-      ${portfolioSection(baker.gallery)}
+      ${portfolioSection(portfolioPhotosFromMenu(menu))}
       ${reviewsSection(reviews)}
       <div class="profile-actions">
         <a class="btn btn-primary btn-block" href="${requestHref}"${requestExternal ? ' target="_blank" rel="noopener"' : ''}>Request an order</a>

@@ -98,6 +98,20 @@ async function renderProfile() {
 
 function hasValue(v) { return v != null && String(v).trim() !== ''; }
 
+function onProfileAvatarClick() {
+  const el = document.getElementById('profileAvatarInput');
+  if (el) el.click();
+}
+
+async function onProfileAvatarChange(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+  try {
+    await Api.uploadBakerProfilePhoto(file);
+    Router.refresh({ keepScroll: true });
+  } catch (err) { alert(err.message); }
+}
+
 function computeCompletion(baker) {
   const faq = baker.faq || {};
   const faqDone = ALL_FAQ_ITEMS.filter(it => hasValue(faq[it.key])).length;
@@ -119,11 +133,18 @@ function renderProfileHero(baker, isLive) {
   const statusPill = isLive
     ? '<span class="profile-status live">● Live</span>'
     : `<span class="profile-status setup">● ${baker.profileStatus || 'Setup'}</span>`;
+  const initial = (baker.contactName || baker.businessName || '?').trim()[0].toUpperCase();
+  const avatarInner = baker.photo
+    ? `<img src="${escapeHtml(baker.photo)}" alt="Your profile photo">`
+    : escapeHtml(initial);
+  const avatarStyle = baker.photo ? '' : ` style="background: ${avatarGradient(baker.contactName || baker.businessName || 'B')};"`;
   return `
     <div class="profile-hero">
-      <div class="profile-avatar-xl" style="background: ${avatarGradient(baker.contactName || baker.businessName || 'B')};">
-        ${(baker.contactName || baker.businessName || '?').trim()[0].toUpperCase()}
+      <div class="profile-avatar-xl${baker.photo ? ' has-photo' : ''}"${avatarStyle} onclick="onProfileAvatarClick()" title="Upload profile photo">
+        ${avatarInner}
+        <span class="profile-avatar-edit">Edit</span>
       </div>
+      <input type="file" id="profileAvatarInput" accept="image/*" hidden onchange="onProfileAvatarChange(event)">
       <div class="profile-hero-info">
         <div class="profile-business">${escapeHtml(baker.businessName || 'Your bakery')}</div>
         <div class="profile-contact">${escapeHtml(baker.contactName || baker.firstName || 'Add your name')}</div>

@@ -893,6 +893,33 @@ app.post('/api/uploads/photo', requireAuth, photoUpload.single('photo'), async (
   } catch (e) { next(e); }
 });
 
+// Baker profile photo: upload via the same Cloudinary path, then store the URL
+// on the existing "Profile Photo" attachment field (renders on the profile
+// avatar, the public profile banner, and the directory card).
+app.post('/api/baker/profile/photo', requireAuth, photoUpload.single('photo'), async (req, res, next) => {
+  try {
+    const baker = await currentBaker(req);
+    if (!cloudinary.isConfigured()) {
+      return res.status(503).json({ error: 'Photo uploads are not configured.' });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No photo uploaded.' });
+    }
+    const result = await cloudinary.uploadImage(req.file.buffer, { filename: req.file.originalname });
+    if (MODE === 'mock') {
+      if (mock.baker) mock.baker.photo = result.url;
+      return res.json({ ok: true, url: result.url });
+    }
+    const rec = await airtable.findOne('Baker Profiles', {
+      filterByFormula: `LOWER(TRIM({Email})) = '${escapeFormula(baker.email)}'`
+    });
+    if (!rec) return res.status(404).json({ error: 'Baker profile not found.' });
+    // "Profile Photo" is an attachment field; Airtable ingests the public URL.
+    await airtable.update('Baker Profiles', rec.id, { 'Profile Photo': [{ url: result.url }] });
+    res.json({ ok: true, url: result.url });
+  } catch (e) { next(e); }
+});
+
 // ── Price My Bakes ─────────────────────────────────────────────────────────
 
 app.get('/api/ingredients', requireAuth, async (req, res, next) => {

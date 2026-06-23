@@ -44,6 +44,7 @@ function renderOrderFlow({ baker, item, availableDates, serviceFee }) {
     </div>
 
     <section class="ostep active" data-step="1">
+      ${item.coverPhoto ? `<div class="order-cover" style="background-image:url('${esc(item.coverPhoto)}')"></div>` : ''}
       <h1>${esc(item.name)}</h1>
       <div class="price-line">$${Number(item.price).toFixed(2)} ${soldPerLabel}</div>
       <div class="field">

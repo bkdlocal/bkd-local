@@ -158,6 +158,7 @@ function bakerFromRecord(rec) {
     firstName: contact.split(' ')[0] || 'Baker',
     businessName: f['Business Name'] || null,
     avatarLetter: (contact[0] || (f['Business Name'] || '?')[0] || '?').toUpperCase(),
+    photo: (Array.isArray(f['Profile Photo']) && f['Profile Photo'][0] && f['Profile Photo'][0].url) || null,
     phone: f['Phone'] || null,
     city: f['City'] || null,
     tier: f['Tier'] || null,
