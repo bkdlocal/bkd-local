@@ -265,6 +265,7 @@ function menuSection(menu, bakerId) {
   if (!menu || !menu.length) return '';
   const rows = menu.map(m => `
     <div class="menu-row">
+      ${m.coverPhoto ? `<div class="menu-row-cover" style="background-image:url('${esc(m.coverPhoto)}');background-size:cover;background-position:center;width:56px;height:56px;border-radius:10px;flex:0 0 auto;margin-right:12px;"></div>` : ''}
       <div class="menu-text">
         <div class="menu-name">${esc(m.name)}</div>
         ${m.description ? `<div class="menu-sub">${esc(m.description)}</div>` : ''}

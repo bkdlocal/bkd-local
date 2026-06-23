@@ -76,6 +76,7 @@ async function renderMenuItem(state = {}) {
       state.typeFields = existing.typeFields && typeof existing.typeFields === 'object' ? { ...existing.typeFields } : {};
       state.batchSize = existing.batchSize ?? null;
       state.batchUnit = existing.batchUnit || null;
+      state.photos = Array.isArray(existing.photos) ? [...existing.photos] : [];
     } else {
       state.name = '';
       state.emoji = '🧁';
@@ -87,6 +88,7 @@ async function renderMenuItem(state = {}) {
       state.typeFields = {};
       state.batchSize = null;
       state.batchUnit = null;
+      state.photos = [];
     }
     state.initialized = true;
     Router.state.menuItem = state;
@@ -111,6 +113,7 @@ async function renderMenuItem(state = {}) {
         ${renderMiBasicsSection(state)}
         ${renderMiTypePicker(state)}
         ${state.productType ? renderMiTypeDetails(state) : ''}
+        ${renderMiPhotosSection(state)}
         ${renderMiFooter(state, isNew)}
       </div>
     </div>
@@ -118,6 +121,7 @@ async function renderMenuItem(state = {}) {
 }
 
 function renderMiBasicsSection(state) {
+  const unit = miPerUnitLabel(state.soldBy);
   return `
     <div class="pmb-section">
       <div class="pmb-section-label">Item name</div>
@@ -125,6 +129,56 @@ function renderMiBasicsSection(state) {
         value="${escapeMiAttr(state.name)}"
         oninput="onMiNameInput(event)"
         placeholder='e.g., "Custom Decorated Sugar Cookies"' />
+
+      <div class="pmb-section-label" style="margin-top:16px;">Base price</div>
+      <div class="mi-price-row" style="display:flex;align-items:center;gap:8px;">
+        <span class="mi-price-dollar">$</span>
+        <input type="number" step="0.01" min="0" class="pmb-input mi-narrow-input"
+          value="${state.price ? escapeMiAttr(state.price) : ''}"
+          oninput="onMiBasePriceInput(event)"
+          placeholder="0.00" />
+        <span class="mi-price-unit" style="color:var(--mauve);font-size:13px;">${unit ? 'per ' + escapeMiHtml(unit) : ''}</span>
+      </div>
+      <button type="button" class="pmb-custom-link" data-action="menuItem:priceCheck">
+        Want to know if you're actually making money on this? Enter your recipe to find out, now!
+      </button>
+    </div>
+  `;
+}
+
+function miPerUnitLabel(soldBy) {
+  if (soldBy === 'dozen') return 'dozen';
+  if (soldBy === 'halfDozen') return 'half dozen';
+  if (soldBy === 'individual') return 'each';
+  return '';
+}
+
+function renderMiPhotosSection(state) {
+  const photos = Array.isArray(state.photos) ? state.photos : [];
+  const tiles = photos.map((url, i) => `
+    <div class="mi-photo-tile${i === 0 ? ' mi-photo-cover' : ''}" style="position:relative;width:84px;height:84px;border-radius:10px;overflow:hidden;background:#f3e9ef;">
+      <img src="${escapeMiAttr(url)}" alt="Photo ${i + 1}" style="width:100%;height:100%;object-fit:cover;" />
+      ${i === 0
+        ? '<span class="mi-photo-badge" style="position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.6);color:#fff;font-size:10px;padding:1px 5px;border-radius:6px;">Cover</span>'
+        : `<button type="button" class="mi-photo-cover-btn" data-action="menuItem:makeCover" data-id="${i}" style="position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.55);color:#fff;font-size:10px;padding:1px 5px;border-radius:6px;border:0;">Make cover</button>`}
+      <button type="button" class="mi-photo-remove" data-action="menuItem:removePhoto" data-id="${i}" aria-label="Remove photo"
+        style="position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:999px;border:0;background:rgba(0,0,0,.6);color:#fff;line-height:1;">×</button>
+    </div>
+  `).join('');
+  const canAdd = photos.length < 7;
+  return `
+    <div class="pmb-section">
+      <div class="pmb-section-label">Photos <span class="mi-hint">${photos.length}/7 · first photo is the cover</span></div>
+      <div class="mi-photo-grid" style="display:flex;flex-wrap:wrap;gap:10px;">
+        ${tiles}
+        ${canAdd ? `
+          <label class="mi-photo-add" style="width:84px;height:84px;border:1.5px dashed var(--mauve-soft);border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--mauve);cursor:pointer;">
+            <input type="file" accept="image/*" multiple hidden onchange="onMiPhotoFilesChange(event)" />
+            <span style="font-size:22px;line-height:1;">+</span>
+            <span style="font-size:11px;">Add photo</span>
+          </label>
+        ` : ''}
+      </div>
     </div>
   `;
 }
@@ -345,7 +399,7 @@ function renderMiDropCookies(state) {
 }
 
 function renderMiFooter(state, isNew) {
-  const saveDisabled = !state.name.trim() || !state.productType;
+  const saveDisabled = !miIsValid(state);
   return `
     <div class="mi-footer">
       <button type="button"
@@ -379,11 +433,40 @@ function renderMenuItemError(message) {
 
 // ─── Live input handlers (no re-render so focus is preserved) ────────────
 
+function miIsValid(s) {
+  if (!s) return false;
+  const photos = Array.isArray(s.photos) ? s.photos.filter(Boolean) : [];
+  return !!(s.name && s.name.trim() && s.productType && s.soldBy && Number(s.price) > 0 && photos.length >= 1);
+}
+
 function onMiNameInput(e) {
   const s = Router.state.menuItem;
   if (!s) return;
   s.name = e.target.value;
   miUpdateSaveButton();
+}
+
+function onMiBasePriceInput(e) {
+  const s = Router.state.menuItem;
+  if (!s) return;
+  s.price = parseFloat(e.target.value) || 0;
+  miUpdateSaveButton();
+}
+
+async function onMiPhotoFilesChange(e) {
+  const s = Router.state.menuItem;
+  if (!s) return;
+  s.photos = Array.isArray(s.photos) ? s.photos : [];
+  const files = Array.from(e.target.files || []);
+  const room = 7 - s.photos.length;
+  if (files.length > room) alert('You can add up to 7 photos per item.');
+  for (const f of files.slice(0, Math.max(0, room))) {
+    try {
+      const r = await Api.uploadPhoto(f);
+      if (r && r.url) s.photos.push(r.url);
+    } catch (err) { alert(err.message); }
+  }
+  Router.refresh({ keepScroll: true });
 }
 
 function onMiMaxColorsInput(e) {
@@ -422,7 +505,7 @@ function miUpdateSaveButton() {
   if (!s) return;
   const btn = document.querySelector('.mi-save-btn');
   if (!btn) return;
-  const disabled = !s.name.trim() || !s.productType;
+  const disabled = !miIsValid(s);
   btn.disabled = disabled;
   btn.classList.toggle('mi-save-disabled', disabled);
 }

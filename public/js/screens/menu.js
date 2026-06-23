@@ -34,19 +34,31 @@ async function renderMenu() {
   `;
 }
 
+function menuUnitLabel(soldBy) {
+  if (soldBy === 'dozen') return 'dozen';
+  if (soldBy === 'halfDozen') return 'half dozen';
+  if (soldBy === 'individual') return 'each';
+  return '';
+}
+
 function renderMenuCard(item) {
   const typeLabel = item.productType
     ? productTypeLabel(item.productType)
     : (item.category || 'Uncategorized');
+  const unit = menuUnitLabel(item.soldBy);
   const priceLabel = Number(item.price) > 0
-    ? `$${Number(item.price).toFixed(0)}`
+    ? `$${Number(item.price).toFixed(0)}${unit ? ' per ' + unit : ''}`
     : '—';
+  const cover = item.coverPhoto || (Array.isArray(item.photos) ? item.photos[0] : null) || null;
+  const thumb = cover
+    ? `<div class="menu-emoji menu-cover" style="background-image:url('${escapeMenuHtml(cover)}');background-size:cover;background-position:center;width:44px;height:44px;border-radius:10px;"></div>`
+    : `<div class="menu-emoji">${item.emoji || '🧁'}</div>`;
 
   return `
     <div class="menu-card ${item.available ? '' : 'menu-card-unavailable'}">
       <button type="button" class="menu-card-main"
         data-action="menu:edit" data-id="${item.id}">
-        <div class="menu-emoji">${item.emoji || '🧁'}</div>
+        ${thumb}
         <div class="menu-card-body">
           <div class="menu-card-top">
             <div class="menu-name">${escapeMenuHtml(item.name)}</div>

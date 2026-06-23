@@ -103,12 +103,14 @@ function parseFeeRate(raw) {
 }
 
 function statusFromAirtable(raw) {
+  // Live "Order Status" vocabulary is the single source of truth:
+  // Pending / New / Confirmed / Fulfilled / Cancelled / Disputed.
   const lc = String(raw || '').toLowerCase().trim();
-  if (lc === 'in progress' || lc === 'inprogress') return 'in_progress';
-  if (lc === 'completed' || lc === 'complete') return 'complete';
-  if (lc === 'declined') return 'declined';
-  if (lc === 'ready') return 'ready';
-  return 'new';
+  if (lc === 'confirmed') return 'in_progress';
+  if (lc === 'fulfilled') return 'complete';
+  if (lc === 'cancelled' || lc === 'canceled') return 'declined';
+  if (lc === 'disputed') return 'disputed';
+  return 'new'; // Pending / New / blank
 }
 
 function paymentStatusFromAirtable(raw) {
@@ -187,14 +189,43 @@ function slotFromRecord(rec) {
   };
 }
 
+// Live "Product Type" / "Sold Per" single-select option names <-> baker-app ids.
+const PRODUCT_TYPE_TO_ID = {
+  'Decorated Sugar Cookies': 'sugarCookies',
+  'Cakes': 'cakes',
+  'Cupcakes': 'cupcakes',
+  'Macarons': 'macarons',
+  'Drop Cookies / Bars / Brownies': 'dropCookies'
+};
+const SOLD_PER_TO_ID = {
+  'Dozen': 'dozen',
+  'Half dozen': 'halfDozen',
+  'Individual': 'individual'
+};
+const PRODUCT_TYPE_EMOJI = {
+  sugarCookies: '🍪', cakes: '🎂', cupcakes: '🧁', macarons: '🌸', dropCookies: '🍫'
+};
+// Photo URL columns on Menu Items: Cover (photo 1) + Portfolio 1-6 (photos 2-7). Max 7.
+const MENU_PHOTO_FIELDS = [
+  'Cover Photo URL',
+  'Portfolio Photo URL 1', 'Portfolio Photo URL 2', 'Portfolio Photo URL 3',
+  'Portfolio Photo URL 4', 'Portfolio Photo URL 5', 'Portfolio Photo URL 6'
+];
+
 function menuItemFromRecord(rec) {
   const f = rec.fields || {};
-  const cost = f['Recipe Cost'];
+  const cost = f['Recipe Cost']; // not on live Menu Items -> null (tolerated)
+  const productType = PRODUCT_TYPE_TO_ID[f['Product Type']] || null;
+  const photos = MENU_PHOTO_FIELDS.map(k => f[k]).filter(Boolean);
   return {
     id: rec.id,
     name: f['Item Name'] || '',
-    emoji: f['Emoji'] || '🧁',
+    emoji: PRODUCT_TYPE_EMOJI[productType] || '🧁',
     price: typeof f['Price'] === 'number' ? f['Price'] : parseFloat(f['Price']) || 0,
+    productType,
+    soldBy: SOLD_PER_TO_ID[f['Sold Per']] || null,
+    photos,
+    coverPhoto: photos[0] || null,
     recipeCost: (cost == null || cost === '') ? null : (typeof cost === 'number' ? cost : parseFloat(cost) || null),
     category: f['Category'] || 'Other',
     available: f['Available'] !== false
@@ -208,19 +239,19 @@ function orderFromRecord(rec) {
     customerName: f['Customer Name'] || 'Customer',
     customerEmail: f['Customer Email'] || null,
     customerPhone: f['Customer Phone'] || null,
-    customerCity: f['Customer City'] || null,
-    item: f['Item'] || '',
+    customerCity: f['Customer City'] || null,           // not on live Orders -> null (tolerated)
+    item: f['Menu Item'] || '',                         // live field name
     notes: f['Notes'] || null,
-    specialInstructions: f['Special Instructions'] || null,
-    allergens: f['Allergens'] || null,
-    pickupDate: f['Pickup Date'] || null,
-    requestedDate: f['Requested Date'] || null,
-    completedDate: f['Completed Date'] || null,
-    readyAt: f['Ready At'] || null,
-    paymentStatus: paymentStatusFromAirtable(f['Payment Status']),
-    amount: typeof f['Amount'] === 'number' ? f['Amount'] : parseFloat(f['Amount']) || 0,
-    status: statusFromAirtable(f['Status']),
-    review: f['Review'] || null,
+    specialInstructions: f['Special Instructions'] || null, // not on live -> null (tolerated)
+    allergens: f['Allergens'] || null,                  // not on live -> null (tolerated)
+    pickupDate: f['Pick Up Date'] || null,              // live field name
+    requestedDate: f['Requested Date'] || null,         // not on live -> null (tolerated)
+    completedDate: f['Completed Date'] || null,         // not on live -> null (tolerated)
+    readyAt: f['Ready At'] || null,                     // not on live -> null (tolerated)
+    paymentStatus: f['Paid'] === true ? 'paid' : 'pending', // live "Paid" checkbox
+    amount: typeof f['Order Total'] === 'number' ? f['Order Total'] : parseFloat(f['Order Total']) || 0, // live field name
+    status: statusFromAirtable(f['Order Status']),      // live field name
+    review: f['Review'] || null,                        // not on live -> null (tolerated)
     reviewRating: typeof f['Review Rating'] === 'number' ? f['Review Rating'] : null,
     reviewRequestedAt: f['Review Requested At'] || null
   };
@@ -238,5 +269,6 @@ module.exports = {
   orderFromRecord,
   slotFromRecord,
   menuItemFromRecord,
+  MENU_PHOTO_FIELDS,
   FAQ_FIELDS
 };

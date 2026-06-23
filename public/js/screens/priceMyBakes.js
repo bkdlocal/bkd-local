@@ -114,14 +114,14 @@ async function renderPriceMyBakes(state = {}) {
       state.store = savedRecipe.store || 'walmart';
       state.ingredients = (savedRecipe.ingredients || []).map(i => ({ ...i }));
       state.supplies = (savedRecipe.supplies || []).map(s => ({ ...s }));
-      state.listedPrice = savedRecipe.listedPrice ?? (menuItem ? menuItem.price : 0);
+      state.listedPrice = savedRecipe.listedPrice ?? (menuItem ? menuItem.price : (state.prefillPrice || 0));
       state.batchSize = savedRecipe.batchSize ?? (menuItem && menuItem.batchSize != null ? menuItem.batchSize : 1);
       state.batchUnit = savedRecipe.batchUnit || (menuItem && (menuItem.batchUnit || menuItem.soldBy)) || 'individual';
     } else {
       state.store = 'walmart';
       state.ingredients = [];
       state.supplies = [];
-      state.listedPrice = menuItem ? menuItem.price : 0;
+      state.listedPrice = menuItem ? menuItem.price : (state.prefillPrice || 0);
       state.batchSize = menuItem && menuItem.batchSize != null ? menuItem.batchSize : 1;
       state.batchUnit = (menuItem && (menuItem.batchUnit || menuItem.soldBy)) || 'individual';
     }
@@ -132,7 +132,7 @@ async function renderPriceMyBakes(state = {}) {
   const typeLabel = menuItem && menuItem.productType ? productTypeLabel(menuItem.productType) : '';
   const subtext = menuItem
     ? (typeLabel ? `${menuItem.emoji || ''} ${menuItem.name} · ${typeLabel}` : `${menuItem.emoji || ''} ${menuItem.name}`)
-    : 'Recipe & profit';
+    : (state.prefillName ? state.prefillName : 'Recipe & profit');
 
   return `
     <div class="screen">

@@ -68,19 +68,25 @@ const Actions = {
   'order:open': ({ id }) => Router.navigate('orderDetail', { orderId: id }),
 
   'order:accept': async ({ id }) => {
-    await Api.acceptOrder(id);
-    Router.refresh();
+    try {
+      await Api.acceptOrder(id);
+      Router.refresh();
+    } catch (e) { alert(e.message); }
   },
 
   'order:decline': async ({ id }) => {
-    await Api.declineOrder(id);
-    if (Router.current === 'orderDetail') Router.navigate('orders');
-    else Router.refresh();
+    try {
+      await Api.declineOrder(id);
+      if (Router.current === 'orderDetail') Router.navigate('orders');
+      else Router.refresh();
+    } catch (e) { alert(e.message); }
   },
 
   'order:markReady': async ({ id }) => {
-    await Api.markOrderReady(id);
-    Router.refresh();
+    try {
+      await Api.markOrderReady(id);
+      Router.refresh();
+    } catch (e) { alert(e.message); }
   },
 
   'orders:filter': ({ value }) => Router.navigate('orders', { filter: value }),
@@ -107,6 +113,8 @@ const Actions = {
     const t = PRODUCT_TYPES.find(x => x.id === value);
     if (t && (!s.emoji || s.emoji === '🧁')) s.emoji = t.emoji;
     if (value === 'cupcakes' && s.soldBy === 'individual') s.soldBy = null;
+    // Cakes have no "Sold by" picker (sized/tiered instead); they're sold per cake.
+    if (value === 'cakes') s.soldBy = 'individual';
     Router.refresh({ keepScroll: true });
   },
   'menuItem:setSoldBy': ({ value }) => {
@@ -170,8 +178,8 @@ const Actions = {
   'menuItem:save': async () => {
     const s = Router.state.menuItem;
     if (!s) return;
-    if (!s.name.trim() || !s.productType) {
-      alert('Item needs a name and a product type.');
+    if (!miIsValid(s)) {
+      alert("To save, add an item name, product type, how it's sold, a base price, and at least one photo.");
       return;
     }
     const payload = {
@@ -191,6 +199,7 @@ const Actions = {
       typeFields: s.typeFields || {},
       batchSize: s.batchSize ?? null,
       batchUnit: s.batchUnit || s.soldBy || null,
+      photos: Array.isArray(s.photos) ? s.photos.filter(Boolean) : [],
       available: true
     };
     try {
@@ -213,6 +222,34 @@ const Actions = {
   'menuItem:cancel': () => {
     Router.state.menuItem = null;
     Router.navigate('menu');
+  },
+  'menuItem:priceCheck': () => {
+    const s = Router.state.menuItem;
+    if (!s) return;
+    // Preserve the in-progress draft (incl. uploaded photo URLs) by leaving
+    // Router.state.menuItem intact; Back returns to it unchanged.
+    Router.state.priceMyBakes = {
+      itemId: s.itemId || null,
+      prefillName: (s.name || '').trim(),
+      prefillPrice: Number(s.price) || 0
+    };
+    Router.navigate('priceMyBakes');
+  },
+  'menuItem:removePhoto': ({ id }) => {
+    const s = Router.state.menuItem;
+    if (!s || !Array.isArray(s.photos)) return;
+    s.photos.splice(parseInt(id, 10), 1);
+    Router.refresh({ keepScroll: true });
+  },
+  'menuItem:makeCover': ({ id }) => {
+    const s = Router.state.menuItem;
+    if (!s || !Array.isArray(s.photos)) return;
+    const i = parseInt(id, 10);
+    if (i > 0 && i < s.photos.length) {
+      const [p] = s.photos.splice(i, 1);
+      s.photos.unshift(p);
+    }
+    Router.refresh({ keepScroll: true });
   },
 
   'pmb:selectStore': ({ value }) => {

@@ -54,6 +54,13 @@ const Api = {
     return data;
   },
 
+  async uploadPhoto(file) {
+    const fd = new FormData();
+    fd.append('photo', file);
+    const r = await fetch('/api/uploads/photo', { method: 'POST', body: fd });
+    return this._handleRes(r, '/api/uploads/photo');
+  },
+
   getMode()    { return this._get('/api/mode'); },
   getSession() { return this._get('/api/auth/me'); },
   login(email, password) { return this._post('/api/auth/login', { email, password }); },

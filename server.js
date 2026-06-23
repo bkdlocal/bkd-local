@@ -9,6 +9,7 @@ const {
   orderFromRecord,
   slotFromRecord,
   menuItemFromRecord,
+  MENU_PHOTO_FIELDS,
   FAQ_FIELDS
 } = require('./server/airtable');
 const {
@@ -239,6 +240,15 @@ async function findBakerAuthByToken(token) {
 }
 
 async function updateBakerAuth(rec, fields) {
+  // Guardrail: refuse to ever null/blank an existing Password Hash. Clearing it
+  // breaks the baker's login at onboarding; nothing should ever do this. (Token
+  // fields ARE allowed to be nulled — that's how a used set-password link is
+  // cleared.) The generic profile-save path (PATCH /api/baker) never reaches
+  // here and whitelists its fields, so auth fields can't be written there.
+  if ('Password Hash' in fields && !fields['Password Hash']) {
+    console.error(`[auth] BLOCKED attempt to clear Password Hash on ${rec.id || '(mock)'}`);
+    throw new Error('Refusing to clear Password Hash.');
+  }
   if (rec._mock) { Object.assign(mockBakerFields, fields); return; }
   await airtable.update('Baker Profiles', rec.id, fields);
 }
@@ -408,10 +418,9 @@ app.post('/api/orders/:id/accept', requireAuth, async (req, res, next) => {
     }
     const existing = await loadOrderForBaker(baker, req.params.id);
     if (!existing) return res.status(404).json({ error: 'Order not found' });
-    await airtable.update('Orders', req.params.id, {
-      Status: 'In Progress',
-      'Payment Status': 'Paid'
-    });
+    // Accepting only confirms the order. No payment is collected in Phase 1
+    // (no Stripe), so we never mark it paid here.
+    await airtable.update('Orders', req.params.id, { 'Order Status': 'Confirmed' });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -425,7 +434,7 @@ app.post('/api/orders/:id/decline', requireAuth, async (req, res, next) => {
     }
     const existing = await loadOrderForBaker(baker, req.params.id);
     if (!existing) return res.status(404).json({ error: 'Order not found' });
-    await airtable.update('Orders', req.params.id, { Status: 'Declined' });
+    await airtable.update('Orders', req.params.id, { 'Order Status': 'Cancelled' });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -439,7 +448,9 @@ app.post('/api/orders/:id/ready', requireAuth, async (req, res, next) => {
     }
     const existing = await loadOrderForBaker(baker, req.params.id);
     if (!existing) return res.status(404).json({ error: 'Order not found' });
-    await airtable.update('Orders', req.params.id, { 'Ready At': new Date().toISOString() });
+    // "Mark ready" advances a confirmed order to Fulfilled (live Orders has no
+    // separate "Ready" state, and no "Ready At" field exists).
+    await airtable.update('Orders', req.params.id, { 'Order Status': 'Fulfilled' });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -601,37 +612,81 @@ app.get('/api/menu/:id', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Baker-app product-type / sold-by ids -> live single-select option names.
+const PRODUCT_TYPE_TO_AIRTABLE = {
+  sugarCookies: 'Decorated Sugar Cookies',
+  cakes: 'Cakes',
+  cupcakes: 'Cupcakes',
+  macarons: 'Macarons',
+  dropCookies: 'Drop Cookies / Bars / Brownies'
+};
+const SOLD_PER_TO_AIRTABLE = {
+  dozen: 'Dozen',
+  halfDozen: 'Half dozen',
+  individual: 'Individual'
+};
+
+// Spread an array of photo URLs across Cover Photo URL + Portfolio Photo URL 1-6.
+function menuPhotoFieldsFor(photos) {
+  const arr = (Array.isArray(photos) ? photos.filter(Boolean) : []).slice(0, MENU_PHOTO_FIELDS.length);
+  const out = {};
+  MENU_PHOTO_FIELDS.forEach((field, i) => { out[field] = arr[i] || null; });
+  return out;
+}
+
+// Required to save (client mirrors this): name, product type, sold-by, base
+// price > 0, and at least one photo. Max Colors stays optional.
+function validateMenuPayload(body) {
+  const b = body || {};
+  if (!String(b.name || '').trim()) return 'Item name is required.';
+  if (!PRODUCT_TYPE_TO_AIRTABLE[b.productType]) return 'Please choose a product type.';
+  if (!SOLD_PER_TO_AIRTABLE[b.soldBy]) return 'Please choose how this item is sold.';
+  if (!(Number(b.price) > 0)) return 'Please enter a base price greater than $0.';
+  const photos = Array.isArray(b.photos) ? b.photos.filter(Boolean) : [];
+  if (photos.length < 1) return 'Please add at least one photo.';
+  return null;
+}
+
+function menuItemAirtableFields(baker, b, { includeBaker } = {}) {
+  const fields = {
+    'Item Name': String(b.name).trim(),
+    'Price': Number(b.price),
+    'Product Type': PRODUCT_TYPE_TO_AIRTABLE[b.productType],
+    'Sold Per': SOLD_PER_TO_AIRTABLE[b.soldBy],
+    'Available': b.available !== false,
+    ...menuPhotoFieldsFor(b.photos)
+  };
+  if (includeBaker) {
+    fields['Baker Email'] = baker.email;
+    if (baker.businessName) fields['Baker Name'] = baker.businessName;
+  }
+  return fields;
+}
+
 app.post('/api/menu', requireAuth, async (req, res, next) => {
   try {
     const baker = await currentBaker(req);
-    const name = String(req.body?.name || '').trim();
-    if (!name) return res.status(400).json({ error: 'Item name is required.' });
-    const fields = {
-      name,
-      emoji: req.body?.emoji || '🧁',
-      price: Number(req.body?.price) || 0,
-      recipeCost: req.body?.recipeCost == null || req.body?.recipeCost === '' ? null : Number(req.body.recipeCost),
-      category: req.body?.category || 'Other',
-      available: req.body?.available !== false
-    };
+    const invalid = validateMenuPayload(req.body);
+    if (invalid) return res.status(400).json({ error: invalid });
+    const b = req.body || {};
     if (MODE === 'mock') {
       return res.json({ ok: true, item: mock.addMenuItem({
-        ...fields,
-        productType: req.body?.productType,
-        soldBy: req.body?.soldBy,
-        occasionTags: req.body?.occasionTags,
-        addOns: req.body?.addOns,
-        typeFields: req.body?.typeFields,
-        batchSize: req.body?.batchSize,
-        batchUnit: req.body?.batchUnit
+        name: String(b.name).trim(),
+        emoji: b.emoji || '🧁',
+        price: Number(b.price) || 0,
+        category: b.category || 'Other',
+        available: b.available !== false,
+        productType: b.productType,
+        soldBy: b.soldBy,
+        occasionTags: b.occasionTags,
+        addOns: b.addOns,
+        typeFields: b.typeFields,
+        batchSize: b.batchSize,
+        batchUnit: b.batchUnit,
+        photos: Array.isArray(b.photos) ? b.photos.filter(Boolean) : []
       }) });
     }
-    const rec = await airtable.create('Menu Items', {
-      'Baker Email': baker.email,
-      'Item Name': fields.name,
-      'Price': fields.price,
-      'Available': fields.available
-    });
+    const rec = await airtable.create('Menu Items', menuItemAirtableFields(baker, b, { includeBaker: true }));
     res.json({ ok: true, item: menuItemFromRecord(rec) });
   } catch (e) { next(e); }
 });
@@ -639,6 +694,8 @@ app.post('/api/menu', requireAuth, async (req, res, next) => {
 app.patch('/api/menu/:id', requireAuth, async (req, res, next) => {
   try {
     const baker = await currentBaker(req);
+    const invalid = validateMenuPayload(req.body);
+    if (invalid) return res.status(400).json({ error: invalid });
     const body = req.body || {};
     if (MODE === 'mock') {
       const item = mock.updateMenuItem(req.params.id, body);
@@ -649,11 +706,7 @@ app.patch('/api/menu/:id', requireAuth, async (req, res, next) => {
     if (!rec || normEmail(rec.fields['Baker Email']) !== baker.email) {
       return res.status(404).json({ error: 'Menu item not found.' });
     }
-    const fields = {};
-    if (body.name != null) fields['Item Name'] = body.name;
-    if (body.price != null) fields['Price'] = Number(body.price);
-    if (body.available != null) fields['Available'] = !!body.available;
-    const updated = await airtable.update('Menu Items', req.params.id, fields);
+    const updated = await airtable.update('Menu Items', req.params.id, menuItemAirtableFields(baker, body));
     res.json({ ok: true, item: menuItemFromRecord(updated) });
   } catch (e) { next(e); }
 });
