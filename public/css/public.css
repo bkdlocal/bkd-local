@@ -267,6 +267,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 .portfolio-tile { aspect-ratio: 1; border-radius: 14px; background-size: cover; background-position: center; }
 .portfolio-empty { background: var(--tile-grad); }
 .order-cover { width: 100%; height: 220px; border-radius: 16px; background-size: cover; background-position: center; margin-bottom: 16px; }
+.portfolio-soon { color: var(--mauve); font-size: 14px; }
 
 /* Reviews */
 .reviews { display: flex; flex-direction: column; gap: 14px; }

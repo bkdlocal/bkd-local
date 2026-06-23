@@ -278,24 +278,35 @@ function menuSection(menu, bakerId) {
   return `<section class="profile-section"><div class="section-label">Menu</div><div class="menu-rows">${rows}</div></section>`;
 }
 
-// Portfolio strip is derived from the baker's menu-item photos (no seed images):
-// one menu item -> that item's cover + portfolio photos, in order; two or more
-// items -> each item's cover photo. Hidden entirely when there are no photos.
+// Portfolio strip: 6 tiles max, divided evenly across the baker's menu items;
+// when 6 does not divide evenly, the first item gets the remainder. For each
+// item, photos are taken in order Cover Photo URL then Portfolio Photo URL 1..6
+// (already assembled, empties removed, in m.photos). Only show photos that
+// exist, never empty or broken tiles. Items beyond the 6th are not shown.
+//   base = floor(6 / itemCount), remainder = 6 % itemCount
+//   first item slots = base + remainder, every other item = base
 function portfolioPhotosFromMenu(menu) {
-  if (!menu || !menu.length) return [];
-  if (menu.length === 1) {
-    const m = menu[0];
-    const list = (m.photos && m.photos.length) ? m.photos : [m.coverPhoto];
-    return list.filter(Boolean);
-  }
-  return menu.map(m => m.coverPhoto).filter(Boolean);
+  const items = (menu || []).slice(0, 6);
+  const n = items.length;
+  if (!n) return [];
+  const base = Math.floor(6 / n);
+  const remainder = 6 % n;
+  const out = [];
+  items.forEach((m, i) => {
+    const slots = base + (i === 0 ? remainder : 0);
+    if (slots <= 0) return;
+    const available = (m.photos || []).filter(Boolean);
+    for (let k = 0; k < slots && k < available.length; k++) out.push(available[k]);
+  });
+  return out.slice(0, 6);
 }
 
 function portfolioSection(photos) {
   const list = (photos || []).filter(Boolean);
-  if (!list.length) return '';
-  const tiles = list.map(url => `<div class="portfolio-tile" style="background-image:url('${esc(url)}')"></div>`).join('');
-  return `<section class="profile-section"><div class="section-label">Portfolio</div><div class="portfolio">${tiles}</div></section>`;
+  const inner = list.length
+    ? `<div class="portfolio">${list.map(url => `<div class="portfolio-tile" style="background-image:url('${esc(url)}')"></div>`).join('')}</div>`
+    : `<p class="portfolio-soon">Photos coming soon</p>`;
+  return `<section class="profile-section"><div class="section-label">Portfolio</div>${inner}</section>`;
 }
 
 function reviewsSection(reviews) {
