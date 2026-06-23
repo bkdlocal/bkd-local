@@ -1,4 +1,5 @@
 const { esc, layout } = require('./public-site');
+const ratings = require('./ratings');
 
 const OCCASION_CHOICES = ['Birthday', 'Wedding', 'Baby Shower', 'Holiday', 'Corporate', 'Graduation', 'Just Because', 'Other'];
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -200,13 +201,19 @@ function ratingPrompt(o) {
   if (o.ratingLeftByCustomer) {
     return `<section class="profile-section"><h2>Your rating</h2>
       <div class="rating-display"><span class="rating-stars">${starsRow(o.customerRatingOfBaker)}</span></div>
+      ${o.customerReviewText ? `<p class="review-own">${esc(o.customerReviewText)}</p>` : ''}
       <p class="muted">Thanks for rating. Ratings cannot be changed once submitted.</p></section>`;
+  }
+  if (!ratings.ratingWindowOpen(o.status, o.pickupDate)) {
+    return `<section class="profile-section"><h2>Rate your baker</h2>
+      <p class="muted">The rating window for this order has closed.</p></section>`;
   }
   return `<section class="profile-section" id="ratePrompt"><h2>Rate your baker</h2>
     <p class="muted">How was your order? You can only rate once, so make it count.</p>
     <div class="star-input" id="starInput" data-order="${esc(o.id)}">
       ${[1, 2, 3, 4, 5].map(n => `<button type="button" class="star" data-val="${n}" aria-label="${n} stars">☆</button>`).join('')}
     </div>
+    <textarea id="reviewText" rows="3" maxlength="2000" placeholder="Add a few words about your order (optional)"></textarea>
     <button type="button" class="btn btn-primary" id="submitRating" disabled>Submit rating</button>
     <p class="form-error" id="rateError" hidden></p>
   </section>`;

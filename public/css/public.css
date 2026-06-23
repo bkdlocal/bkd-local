@@ -514,6 +514,17 @@ textarea {
   .thread-preview { max-width: 140px; }
 }
 
+/* Ratings */
+.rating-line { color: var(--berry); font-weight: 500; font-size: 15px; margin: 4px 0 8px; }
+.rating-line .rating-count { color: var(--mauve); font-weight: 400; }
+.card-body .rating-line { font-size: 14px; }
+#ratePrompt textarea {
+  width: 100%; font-family: inherit; font-size: 15px; color: var(--ink);
+  border: 1px solid var(--mauve-soft); border-radius: 14px; padding: 12px 16px;
+  margin-bottom: 12px; resize: vertical;
+}
+.review-own { font-size: 15px; color: #5f5165; margin: 8px 0; }
+
 /* Footer */
 .site-footer { border-top: 1px solid var(--line); margin-top: 48px; padding: 32px 24px; text-align: center; color: var(--mauve); font-size: 14px; }
 .footer-links { margin-top: 6px; }

@@ -28,6 +28,7 @@ function publicBakerFromRecord(rec) {
     instagram: f['Instagram Handle'] || null,
     pickupWindows: f['Pick-up Windows'] || null,
     rating: typeof f['Baker Rating'] === 'number' ? f['Baker Rating'] : null,
+    ratingCount: typeof f['Rating Count'] === 'number' ? f['Rating Count'] : 0,
     verified: f['Verified'] === true,
     foundingBaker: f['Badge'] === 'Founding Baker',
     acceptingOrders: f['Accepting Orders'] === true,
@@ -51,7 +52,8 @@ function publicBakerFromMock(b) {
     specialtyTags: toList(b.specialtyTags),
     instagram: b.instagram || null,
     pickupWindows: b.pickupLocation || null,
-    rating: typeof b.rating === 'number' ? b.rating : 4.9,
+    rating: typeof b.rating === 'number' ? b.rating : null,
+    ratingCount: typeof b.ratingCount === 'number' ? b.ratingCount : 0,
     verified: true,
     foundingBaker: b.tier === 'Charter' || b.badge === 'Verified',
     acceptingOrders: b.acceptingOrders !== false,
@@ -128,6 +130,7 @@ function customerOrderFromRecord(rec) {
     bakerName: f['Baker Name'] || 'Baker',
     bakerEmail: normEmail(f['Baker Email']),
     customerEmail: normEmail(f['Customer Email']),
+    customerName: f['Customer Name'] || null,
     menuItem: f['Menu Item'] || '',
     addOns,
     itemSubtotal: numOrNull(f['Item Subtotal']),
@@ -137,7 +140,10 @@ function customerOrderFromRecord(rec) {
     status: f['Order Status'] || 'New',
     notes: f['Notes'] || null,
     ratingLeftByCustomer: f['Rating Left by Customer'] === true,
-    customerRatingOfBaker: numOrNull(f['Customer Rating of Baker'])
+    customerRatingOfBaker: numOrNull(f['Customer Rating of Baker']),
+    customerReviewText: f['Customer Review Text'] || null,
+    ratingLeftByBaker: f['Rating Left by Baker'] === true,
+    bakerRatingOfCustomer: numOrNull(f['Baker Rating of Customer'])
   };
 }
 

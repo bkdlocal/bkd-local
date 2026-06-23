@@ -19,8 +19,10 @@
     if (!value) return;
     err.hidden = true; submit.disabled = true; submit.textContent = 'Submitting...';
     try {
+      const ta = document.getElementById('reviewText');
+      const text = ta ? ta.value.trim() : '';
       const r = await fetch('/api/orders/' + encodeURIComponent(orderId) + '/rate', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: value })
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: value, text: text })
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'Could not submit rating.');

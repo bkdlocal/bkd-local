@@ -34,6 +34,7 @@ const publicData = require('./server/public-data');
 const orderFlow = require('./server/order-flow');
 const customerSite = require('./server/customer-site');
 const messaging = require('./server/messaging');
+const ratings = require('./server/ratings');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = getSessionSecret();
@@ -53,6 +54,26 @@ const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 const SERVICE_FEE = 1.5; // Phase 1 flat customer service fee, shown on the order request.
 const mockOrders = []; // mock-mode customer order store (in-memory)
 const mockMessages = []; // mock-mode unified Messages store (in-memory)
+
+// Mock-only: one Fulfilled order so the rating flow is demonstrable in mock.
+// Owner is ratingdemo@test.com (sign that email up to claim it). Pickup = today
+// so the 7-day rating window is open regardless of the machine clock.
+if (MODE === 'mock') {
+  mockOrders.push({
+    id: 'mockord-fulfilled-demo',
+    fields: {
+      'Order ID': 'ORD-DEMO',
+      'Baker Name': mock.baker.businessName,
+      'Baker Email': normEmail(mock.baker.email),
+      'Customer Email': 'ratingdemo@test.com',
+      'Customer Name': 'Rating Demo',
+      'Menu Item': 'French Macaron Box',
+      'Item Subtotal': 42, 'Service Fee': 1.5, 'Order Total': 43.5,
+      'Pick Up Date': new Date().toISOString().slice(0, 10),
+      'Order Status': 'Fulfilled'
+    }
+  });
+}
 
 const app = express();
 app.set('trust proxy', true);
@@ -904,6 +925,23 @@ async function loadPublicReviews(email) {
   return records.map(publicData.publicReviewFromRecord);
 }
 
+// Public reviews for the dual-rating system come from Orders (Customer Review
+// Text on Fulfilled, rated orders), most recent first. First name + last initial.
+function shortReviewer(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return 'Customer';
+  if (parts.length === 1) return parts[0];
+  return `${parts[0]} ${parts[parts.length - 1][0]}.`;
+}
+
+async function loadBakerReviews(email) {
+  const orders = await ratingOrders({ baker: email });
+  return orders
+    .filter(o => o.status === 'Fulfilled' && o.customerRatingOfBaker != null && o.customerReviewText)
+    .map(o => ({ reviewerName: shortReviewer(o.customerName), rating: o.customerRatingOfBaker, text: o.customerReviewText, date: o.pickupDate }))
+    .sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+}
+
 // Availability "Available Date" is a date-only field; the API returns it as a
 // 'YYYY-MM-DD' string. Compare as strings (no Date parsing) so the picker value
 // and the stored value can't drift by a day across timezones.
@@ -1022,7 +1060,7 @@ app.get('/bakers/:id', async (req, res, next) => {
     if (!baker) return res.status(404).type('html').send(publicSite.renderNotFound());
     const [menu, reviews] = await Promise.all([
       loadPublicMenu(baker.email),
-      loadPublicReviews(baker.email)
+      loadBakerReviews(baker.email)
     ]);
     res.type('html').send(publicSite.renderProfile({ baker, menu, reviews, viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
@@ -1291,24 +1329,116 @@ app.post('/api/customer/profile/photo', requireCustomerAuth, photoUpload.single(
 
 // One-time customer rating of the baker after fulfilment. Storing the rating is
 // done here; recalculating the baker's aggregate average is deferred to Batch E.
+// ── Dual rating system (spec 7) ─────────────────────────────────────────────
+
+async function fetchOrderById(orderId) {
+  if (MODE === 'mock') {
+    const r = mockOrders.find(o => o.id === orderId);
+    return r ? publicData.customerOrderFromRecord(r) : null;
+  }
+  const rec = await airtable.findById('Orders', orderId);
+  return rec ? publicData.customerOrderFromRecord(rec) : null;
+}
+
+async function updateOrderFields(orderId, fields) {
+  if (MODE === 'mock') {
+    const r = mockOrders.find(o => o.id === orderId);
+    if (r) Object.assign(r.fields, fields);
+    return;
+  }
+  await airtable.update('Orders', orderId, fields);
+}
+
+async function ratingOrders(filter) {
+  let recs;
+  if (MODE === 'mock') {
+    recs = mockOrders.filter(o =>
+      filter.baker ? normEmail(o.fields['Baker Email']) === filter.baker
+                   : normEmail(o.fields['Customer Email']) === filter.customer);
+  } else {
+    const f = filter.baker
+      ? `LOWER(TRIM({Baker Email})) = '${escapeFormula(filter.baker)}'`
+      : `LOWER(TRIM({Customer Email})) = '${escapeFormula(filter.customer)}'`;
+    recs = await airtable.list('Orders', { filterByFormula: f });
+  }
+  return recs.map(publicData.customerOrderFromRecord);
+}
+
+// Baker Rating = average of Customer Rating of Baker across the baker's Fulfilled
+// rated orders; denormalized onto Baker Profiles (Baker Rating + Rating Count).
+async function recomputeBakerRating(bakerEmail) {
+  const orders = await ratingOrders({ baker: bakerEmail });
+  const scores = orders
+    .filter(o => o.status === 'Fulfilled' && o.customerRatingOfBaker != null)
+    .map(o => o.customerRatingOfBaker);
+  const avg = ratings.average(scores);
+  const count = scores.length;
+  if (MODE === 'mock') {
+    if (normEmail(mock.baker.email) === bakerEmail) { mock.baker.rating = avg; mock.baker.ratingCount = count; }
+    return { avg, count };
+  }
+  const rec = await airtable.findOne('Baker Profiles', {
+    filterByFormula: `LOWER(TRIM({Email})) = '${escapeFormula(bakerEmail)}'`
+  });
+  if (rec) await airtable.update('Baker Profiles', rec.id, { 'Baker Rating': avg, 'Rating Count': count });
+  return { avg, count };
+}
+
+// Customer Rating = average of Baker Rating of Customer across the customer's
+// Fulfilled rated orders; denormalized onto Customers (Customer Rating + Rating Count).
+async function recomputeCustomerRating(customerEmail) {
+  const orders = await ratingOrders({ customer: customerEmail });
+  const scores = orders
+    .filter(o => o.status === 'Fulfilled' && o.bakerRatingOfCustomer != null)
+    .map(o => o.bakerRatingOfCustomer);
+  const avg = ratings.average(scores);
+  const count = scores.length;
+  const rec = await customers.findByEmail(customerEmail);
+  if (rec) await customers.update(rec.id, { 'Customer Rating': avg, 'Rating Count': count });
+  return { avg, count };
+}
+
+// Customer rates the baker: 1-5 stars + optional text review. One-time, 7-day window.
 app.post('/api/orders/:orderId/rate', requireCustomerAuth, async (req, res, next) => {
   try {
     const order = await loadCustomerOrder(req.customer.email, req.params.orderId);
     if (!order) return res.status(404).json({ error: 'Order not found.' });
-    if (customerSite.normalizeStatus(order.status) !== 'Fulfilled') {
-      return res.status(400).json({ error: 'You can rate once the order is complete.' });
+    if (order.status !== 'Fulfilled') return res.status(400).json({ error: 'You can rate once the order is complete.' });
+    if (!ratings.ratingWindowOpen(order.status, order.pickupDate)) {
+      return res.status(400).json({ error: 'The rating window for this order has closed.' });
     }
     if (order.ratingLeftByCustomer) return res.status(409).json({ error: 'You already rated this order.' });
     const rating = parseInt(req.body && req.body.rating, 10);
-    if (!(rating >= 1 && rating <= 5)) return res.status(400).json({ error: 'Please choose 1 to 5 stars.' });
+    if (!ratings.validStars(rating)) return res.status(400).json({ error: 'Please choose 1 to 5 stars.' });
+    const text = req.body && req.body.text ? String(req.body.text).trim().slice(0, 2000) : '';
 
-    if (MODE === 'mock') {
-      const recM = mockOrders.find(o => o.id === order.id);
-      if (recM) { recM.fields['Customer Rating of Baker'] = rating; recM.fields['Rating Left by Customer'] = true; }
-    } else {
-      await airtable.update('Orders', order.id, { 'Customer Rating of Baker': rating, 'Rating Left by Customer': true });
+    const fields = { 'Customer Rating of Baker': rating, 'Rating Left by Customer': true };
+    if (text) fields['Customer Review Text'] = text;
+    await updateOrderFields(order.id, fields);
+    const agg = await recomputeBakerRating(order.bakerEmail);
+    console.log(`[rating] customer ${req.customer.email} rated baker ${order.bakerEmail} ${rating}; baker avg now ${agg.avg} (${agg.count})`);
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// Baker rates the customer: 1-5 stars, no text. One-time, 7-day window. Private.
+app.post('/api/baker/rate-customer', requireAuth, async (req, res, next) => {
+  try {
+    const baker = await currentBaker(req);
+    const orderId = String(req.body && req.body.orderId || '');
+    const order = await fetchOrderById(orderId);
+    if (!order || order.bakerEmail !== baker.email) return res.status(404).json({ error: 'Order not found.' });
+    if (order.status !== 'Fulfilled') return res.status(400).json({ error: 'You can rate once the order is complete.' });
+    if (!ratings.ratingWindowOpen(order.status, order.pickupDate)) {
+      return res.status(400).json({ error: 'The rating window for this order has closed.' });
     }
-    console.log(`[rating] ${req.customer.email} rated baker ${order.bakerEmail} ${rating}★ on order ${order.id} (aggregate recalc deferred to Batch E)`);
+    if (order.ratingLeftByBaker) return res.status(409).json({ error: 'You already rated this customer.' });
+    const rating = parseInt(req.body && req.body.rating, 10);
+    if (!ratings.validStars(rating)) return res.status(400).json({ error: 'Please choose 1 to 5 stars.' });
+
+    await updateOrderFields(order.id, { 'Baker Rating of Customer': rating, 'Rating Left by Baker': true });
+    const agg = await recomputeCustomerRating(order.customerEmail);
+    console.log(`[rating] baker ${baker.email} rated customer ${order.customerEmail} ${rating}; customer avg now ${agg.avg} (${agg.count})`);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });

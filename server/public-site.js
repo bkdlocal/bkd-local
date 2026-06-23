@@ -54,6 +54,13 @@ function chips(items, cls) {
   return `<div class="chips">${items.map(t => `<span class="chip ${cls || ''}">${esc(t)}</span>`).join('')}</div>`;
 }
 
+// Public baker rating: "X.X stars (N reviews)". Hidden until there is at least one rating.
+function ratingLine(baker) {
+  if (baker.rating == null || !baker.ratingCount) return '';
+  const n = baker.ratingCount;
+  return `<div class="rating-line">★ ${esc(Number(baker.rating).toFixed(1))} <span class="rating-count">(${n} review${n === 1 ? '' : 's'})</span></div>`;
+}
+
 function bakerCard(baker) {
   const taking = baker.acceptingOrders
     ? `<span class="taking"><span class="dot"></span>Taking orders</span>`
@@ -62,6 +69,7 @@ function bakerCard(baker) {
     ${cardPhoto(baker)}
     <div class="card-body">
       <h3>${esc(baker.businessName)}</h3>
+      ${ratingLine(baker)}
       ${baker.bio ? `<p class="card-bio">${esc(baker.bio)}</p>` : ''}
       ${chips(baker.productTypes.slice(0, 3))}
       <div class="card-foot">
@@ -312,6 +320,7 @@ function renderProfile({ baker, menu, reviews, viewer }) {
         <div class="profile-badges">${badges(baker)}</div>
       </div>
       <div class="profile-location">📍 ${esc(loc)}</div>
+      ${ratingLine(baker)}
       ${baker.bio ? `<p class="profile-bio">${esc(baker.bio)}</p>` : ''}
       ${menuSection(menu, baker.id)}
       ${portfolioSection(baker.gallery)}
