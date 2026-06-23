@@ -9,13 +9,8 @@ async function renderLogin() {
     <div class="screen login-screen">
       ${renderStatusBar()}
       <div class="login-body">
-        <div class="login-brand">
-          <div class="login-logo">Bkd Local</div>
-          <div class="login-tagline">for bakers</div>
-        </div>
-
         <div class="login-card">
-          <div class="login-hero">🧁</div>
+          <div class="login-hero"><img src="/img/bkdlocal-logo.svg" alt="bkd local"></div>
           <div class="login-title">Welcome back</div>
           <div class="login-sub">Enter your baker email and password to continue.</div>
 

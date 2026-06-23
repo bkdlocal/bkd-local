@@ -97,7 +97,7 @@ function header(viewer) {
       <a class="nav-cta" href="/app">Are you a baker?</a>`;
   }
   return `<header class="site-header">
-    <a class="brand" href="/">bkd<span>.local</span></a>
+    <a class="brand" href="/"><img src="/img/bkdlocal-logo.svg" alt="bkd local"></a>
     <nav class="site-nav">${nav}</nav>
   </header>`;
 }
@@ -331,7 +331,7 @@ function renderProfile({ baker, menu, reviews, viewer }) {
         <a class="btn btn-primary btn-block" href="${requestHref}"${requestExternal ? ' target="_blank" rel="noopener"' : ''}>Request an order</a>
         <a class="btn btn-outline" href="/customer/messages?baker=${esc(baker.id)}">Message</a>
       </div>
-      <div class="custom-quote">Want something more intricate? <a href="/customer/messages?baker=${esc(baker.id)}&amp;quote=1">Message this baker for a custom quote.</a></div>
+      <div class="custom-quote">Want something you don't see? <a href="/customer/messages?baker=${esc(baker.id)}&amp;quote=1">Message this baker for a custom quote.</a></div>
     </div>
   </article>`;
   const desc = baker.bio || `${baker.businessName}, a verified local baker${baker.city ? ` in ${shortCity(baker.city)}` : ''} on Bkd Local.`;
