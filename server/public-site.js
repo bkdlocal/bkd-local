@@ -115,7 +115,7 @@ function searchBlock(filters) {
   const f = filters || {};
   const isRange = f.mode === 'range';
   return `<form class="search-block" method="get" action="/bakers">
-    <div class="search-prompt">When do you need your bakes?</div>
+    <div class="search-prompt">When's the celebration?</div>
     <input class="mode-radio" type="radio" name="mode" id="mode-single" value="single"${isRange ? '' : ' checked'}>
     <input class="mode-radio" type="radio" name="mode" id="mode-range" value="range"${isRange ? ' checked' : ''}>
     <div class="mode-tabs">
@@ -134,7 +134,7 @@ function searchBlock(filters) {
     </div>
     <div class="search-secondary">
       <span class="search-icon">${SEARCH_ICON}</span>
-      <input type="search" name="q" value="${esc(f.q || '')}" placeholder="Filter by treat, baker name, or occasion (optional)" aria-label="Filter by treat, baker, or occasion">
+      <input type="search" name="q" value="${esc(f.q || '')}" placeholder="Search by treat, baker, or occasion" aria-label="Search by treat, baker, or occasion">
       <button class="btn btn-primary" type="submit">Find bakers</button>
     </div>
   </form>`;
@@ -144,8 +144,8 @@ function hero(filters, { compact } = {}) {
   return `<section class="hero${compact ? ' hero-compact' : ''}">
     <div class="hero-inner">
       <div class="hero-eyebrow">${esc(REGION.toUpperCase())}</div>
-      <h1>Find an artisan baker <span>near you</span></h1>
-      <p class="hero-sub">Every baker is verified. Prices are upfront. Payment is protected.</p>
+      <h1>Something beautiful for <span>the moments that matter</span></h1>
+      <p class="hero-sub">Custom cookies, cakes, and treats from the artisan bakers right in your neighborhood.</p>
       ${searchBlock(filters)}
     </div>
   </section>`;
@@ -181,6 +181,7 @@ function renderHome({ bakers, viewer }) {
   const featured = bakers.slice(0, 6);
   const body = `
   ${hero({})}
+  <p class="hero-reassure">Every baker is verified. Pricing is upfront. Payment is protected.</p>
   <section class="section">
     <div class="section-head">
       <h2>Featured bakers</h2>
@@ -188,19 +189,19 @@ function renderHome({ bakers, viewer }) {
     </div>
     ${featured.length
       ? `<div class="baker-grid">${featured.map(bakerCard).join('')}</div>`
-      : `<p class="empty">No bakers are live just yet. Check back soon.</p>`}
+      : `<p class="empty">Our bakers are getting set up. Check back very soon.</p>`}
   </section>
   <section class="section how" id="how">
     <h2>How it works</h2>
     <div class="how-grid">
-      <div class="how-step"><span class="how-num">1</span><h4>Pick your date</h4><p>Tell us when you need your bakes.</p></div>
-      <div class="how-step"><span class="how-num">2</span><h4>Browse who is free</h4><p>See verified bakers available then.</p></div>
-      <div class="how-step"><span class="how-num">3</span><h4>Request and pick up</h4><p>Reserve your order and grab it fresh.</p></div>
+      <div class="how-step"><span class="how-num">1</span><h4>Pick your date</h4><p>Tell us when your celebration is.</p></div>
+      <div class="how-step"><span class="how-num">2</span><h4>See who's available</h4><p>Browse verified bakers free on your date.</p></div>
+      <div class="how-step"><span class="how-num">3</span><h4>Request and pick up</h4><p>Send your request and pick up something beautiful.</p></div>
     </div>
   </section>`;
   return layout({
-    title: 'Find an artisan baker near you · Bkd Local',
-    description: `Discover verified local bakers in ${REGION} available on your date. Cakes, cookies, macarons and more, made to order.`,
+    title: 'Custom cakes, cookies & macarons from local bakers · Bkd Local',
+    description: `Find the perfect custom cakes, cookies, and treats for your celebration, made to order by verified local bakers in ${REGION}.`,
     body, viewer
   });
 }
@@ -255,7 +256,7 @@ function renderDirectory({ bakers, cities, types, filters, total, viewer }) {
   </section>`;
   return layout({
     title: 'Find a baker · Bkd Local',
-    description: `Browse verified local bakers in ${REGION} by date, treat and city.`,
+    description: `Browse beautiful custom bakes from verified local bakers in ${REGION}, by date, treat, and city.`,
     body, viewer
   });
 }
@@ -319,7 +320,7 @@ function renderProfile({ baker, menu, reviews, viewer }) {
         <h1>${esc(baker.businessName)}</h1>
         <div class="profile-badges">${badges(baker)}</div>
       </div>
-      <div class="profile-location">📍 ${esc(loc)}</div>
+      <div class="profile-location">${esc(loc)}</div>
       ${ratingLine(baker)}
       ${baker.bio ? `<p class="profile-bio">${esc(baker.bio)}</p>` : ''}
       ${menuSection(menu, baker.id)}

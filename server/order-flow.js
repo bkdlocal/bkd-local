@@ -91,7 +91,6 @@ function renderOrderFlow({ baker, item, availableDates, serviceFee }) {
 
     <section class="ostep" data-step="done">
       <div class="done-card">
-        <div class="done-emoji">🎉</div>
         <h2>Request sent!</h2>
         <p>Your request has gone to ${esc(baker.businessName)}. They will confirm and reach out with pickup and payment details.</p>
         <a class="btn btn-primary btn-block" href="/bakers">Browse more bakers</a>
@@ -118,7 +117,7 @@ function renderAuth({ mode, redirect }) {
   <div class="auth-wrap">
     <div class="auth-card">
       <h1>${isSignup ? 'Create your account' : 'Welcome back'}</h1>
-      <p class="muted">${isSignup ? 'Sign up to send order requests to local bakers.' : 'Log in to continue your order request.'}</p>
+      <p class="muted">${isSignup ? 'Create an account to start ordering from your local bakers.' : 'Log in to continue your order request.'}</p>
       <form id="authForm" data-mode="${isSignup ? 'signup' : 'login'}" data-redirect="${esc(r)}">
         ${signupFields}
         <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>

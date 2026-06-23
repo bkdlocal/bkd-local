@@ -101,6 +101,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 .hero h1 { font-size: 40px; line-height: 1.12; margin: 0 0 14px; }
 .hero h1 span { color: var(--berry); }
 .hero-sub { font-size: 16px; color: #6b5a72; margin: 0 0 26px; }
+.hero-reassure { text-align: center; color: var(--mauve); font-size: 13px; font-weight: 400; margin: 0 0 8px; }
 
 /* Date-first search block */
 .search-block {
