@@ -9,7 +9,9 @@
 const RESEND_API = 'https://api.resend.com/emails';
 
 function fromAddress() {
-  return process.env.RESEND_FROM || 'Bkd Local <noreply@bkdlocal.com>';
+  // Default uses the verified mail.bkdlocal.com sending domain. RESEND_FROM
+  // overrides it when set (must also be an address at a verified domain).
+  return process.env.RESEND_FROM || 'Bkd Local <noreply@mail.bkdlocal.com>';
 }
 
 function isConfigured() {
