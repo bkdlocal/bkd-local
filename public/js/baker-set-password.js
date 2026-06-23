@@ -22,8 +22,7 @@
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'Could not set password.');
       form.querySelectorAll('input,button').forEach(el => { el.disabled = true; });
-      note.innerHTML = 'Password set. You can now <a href="/app">log in to your baker account</a>.';
-      note.hidden = false;
+      window.location = j.redirect || '/app';
     } catch (e2) {
       err.textContent = e2.message; err.hidden = false; btn.disabled = false;
     }

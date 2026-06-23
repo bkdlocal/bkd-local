@@ -281,10 +281,11 @@ app.post('/api/auth/login', async (req, res, next) => {
     const authRec = await findBakerAuthRecord(email);
     const hash = authRec && authRec.fields['Password Hash'];
     if (!hash) {
-      // Hard cutover: no password set yet. Issue a set-password link, do not log in.
-      await issueBakerSetPassword(req, authRec, email);
+      // No password set yet. Do NOT issue a token here. The set-password link is
+      // sent only through the single "Set or reset your password" path
+      // (/api/auth/forgot-password), so one request maps to exactly one token.
       return res.status(403).json({
-        error: 'Set up your password to continue. We just sent a set-password link to your email.',
+        error: 'You have not set a password yet. Tap "Set or reset your password" to get a secure link by email.',
         needsPasswordSetup: true
       });
     }
@@ -320,7 +321,9 @@ app.post('/api/auth/set-password', async (req, res, next) => {
       'Set Password Token': null,
       'Set Password Token Expires': null
     });
-    res.json({ ok: true });
+    // Log the baker in immediately and send them to the app.
+    setSessionCookie(res, rec.email);
+    res.json({ ok: true, redirect: '/app' });
   } catch (e) { next(e); }
 });
 
