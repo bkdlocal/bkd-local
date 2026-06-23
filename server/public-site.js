@@ -72,14 +72,25 @@ function bakerCard(baker) {
   </a>`;
 }
 
-function header() {
-  return `<header class="site-header">
-    <a class="brand" href="/">bkd<span>.local</span></a>
-    <nav class="site-nav">
+function header(viewer) {
+  const v = viewer || {};
+  let nav;
+  if (v.customer) {
+    const n = Number(v.unread) || 0;
+    const badge = `<span class="nav-badge" data-nav-unread${n > 0 ? '' : ' hidden'}>${n > 0 ? (n > 9 ? '9+' : n) : ''}</span>`;
+    nav = `
+      <a href="/customer/messages">Messages ${badge}</a>
+      <a href="/customer/orders">Orders</a>
+      <a class="nav-cta" href="/customer/profile">Profile</a>`;
+  } else {
+    nav = `
       <a href="/#how">How it works</a>
       <a href="/app">For bakers</a>
-      <a class="nav-cta" href="/app">Are you a baker?</a>
-    </nav>
+      <a class="nav-cta" href="/app">Are you a baker?</a>`;
+  }
+  return `<header class="site-header">
+    <a class="brand" href="/">bkd<span>.local</span></a>
+    <nav class="site-nav">${nav}</nav>
   </header>`;
 }
 
@@ -132,7 +143,7 @@ function hero(filters, { compact } = {}) {
   </section>`;
 }
 
-function layout({ title, description, body }) {
+function layout({ title, description, body, viewer }) {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -150,14 +161,15 @@ function layout({ title, description, body }) {
 <link rel="stylesheet" href="/css/public.css">
 </head>
 <body>
-${header()}
+${header(viewer)}
 <main>${body}</main>
 ${footer()}
+<script src="/js/nav-badge.js"></script>
 </body>
 </html>`;
 }
 
-function renderHome({ bakers }) {
+function renderHome({ bakers, viewer }) {
   const featured = bakers.slice(0, 6);
   const body = `
   ${hero({})}
@@ -181,7 +193,7 @@ function renderHome({ bakers }) {
   return layout({
     title: 'Find an artisan baker near you · Bkd Local',
     description: `Discover verified local bakers in ${REGION} available on your date. Cakes, cookies, macarons and more, made to order.`,
-    body
+    body, viewer
   });
 }
 
@@ -204,7 +216,7 @@ function dateLabel(filters) {
   return '';
 }
 
-function renderDirectory({ bakers, cities, types, filters, total }) {
+function renderDirectory({ bakers, cities, types, filters, total, viewer }) {
   // Carry the active date + text query through every filter pill.
   const carry = { q: filters.q, mode: filters.mode, date: filters.date, from: filters.from, to: filters.to };
   const typePills = [pill('All treats', `/bakers${buildQuery({ ...carry })}`, !filters.type && !filters.city)]
@@ -236,7 +248,7 @@ function renderDirectory({ bakers, cities, types, filters, total }) {
   return layout({
     title: 'Find a baker · Bkd Local',
     description: `Browse verified local bakers in ${REGION} by date, treat and city.`,
-    body
+    body, viewer
   });
 }
 
@@ -281,7 +293,7 @@ function reviewsSection(reviews) {
   return `<section class="profile-section"><div class="section-label">Reviews</div><div class="reviews">${items}</div></section>`;
 }
 
-function renderProfile({ baker, menu, reviews }) {
+function renderProfile({ baker, menu, reviews, viewer }) {
   const ig = instagramUrl(baker.instagram);
   const bannerStyle = baker.photo ? ` style="background-image:url('${esc(baker.photo)}')"` : '';
   const loc = [shortCity(baker.city) ? `${esc(baker.city)}` : '', 'Pickup available'].filter(Boolean).join(' · ');
@@ -312,7 +324,7 @@ function renderProfile({ baker, menu, reviews }) {
     </div>
   </article>`;
   const desc = baker.bio || `${baker.businessName}, a verified local baker${baker.city ? ` in ${shortCity(baker.city)}` : ''} on Bkd Local.`;
-  return layout({ title: `${baker.businessName} · Bkd Local`, description: desc, body });
+  return layout({ title: `${baker.businessName} · Bkd Local`, description: desc, body, viewer });
 }
 
 function renderNotFound() {

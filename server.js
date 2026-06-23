@@ -951,10 +951,19 @@ async function availableBakerKeys(dateFilter) {
   return { emails, ids };
 }
 
+// Logged-in customers get a Messages/Orders/Profile top nav (with unread badge).
+async function viewerFor(req) {
+  if (!req.customer) return null;
+  try {
+    const threads = await customerThreads(req.customer.email);
+    return { customer: true, unread: threads.filter(t => t.unread).length };
+  } catch (_) { return { customer: true, unread: 0 }; }
+}
+
 app.get('/', async (req, res, next) => {
   try {
     const bakers = await loadPublicBakers();
-    res.type('html').send(publicSite.renderHome({ bakers }));
+    res.type('html').send(publicSite.renderHome({ bakers, viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
 });
 
@@ -1001,7 +1010,8 @@ app.get('/bakers', async (req, res, next) => {
     res.type('html').send(publicSite.renderDirectory({
       bakers, cities, types,
       filters: { city, type, q, mode, date, from, to },
-      total: all.length
+      total: all.length,
+      viewer: await viewerFor(req)
     }));
   } catch (e) { next(e); }
 });
@@ -1014,7 +1024,7 @@ app.get('/bakers/:id', async (req, res, next) => {
       loadPublicMenu(baker.email),
       loadPublicReviews(baker.email)
     ]);
-    res.type('html').send(publicSite.renderProfile({ baker, menu, reviews }));
+    res.type('html').send(publicSite.renderProfile({ baker, menu, reviews, viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
 });
 
@@ -1505,6 +1515,22 @@ app.post('/api/customer/messages', requireCustomerAuth, async (req, res, next) =
     // Email notification (debounced 1/30min per thread) is deferred: no email
     // channel is wired yet. The in-app unread indicator covers this for now.
     res.json({ ok: true, message: msg });
+  } catch (e) { next(e); }
+});
+
+// Unread badge counts (threads where the other party sent last).
+app.get('/api/baker/unread-count', requireAuth, async (req, res, next) => {
+  try {
+    const baker = await currentBaker(req);
+    const convs = await bakerConversations(baker.email);
+    res.json({ count: convs.filter(c => c.unread > 0).length });
+  } catch (e) { next(e); }
+});
+
+app.get('/api/customer/unread-count', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const threads = await customerThreads(req.customer.email);
+    res.json({ count: threads.filter(t => t.unread).length });
   } catch (e) { next(e); }
 });
 

@@ -94,8 +94,16 @@ body {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   flex: 1; cursor: pointer; user-select: none;
   background: none; border: 0; padding: 4px 0;
+  position: relative;
 }
 .nav-icon { font-size: 18px; }
+.nav-badge {
+  position: absolute; top: 0; left: calc(50% + 6px);
+  background: #C2557E; color: #fff;
+  font-size: 10px; font-weight: 600; line-height: 16px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 999px; text-align: center;
+}
 .nav-label { font-size: 9px; color: var(--lavender); font-weight: 500; }
 .nav-active { color: var(--berry) !important; }
 

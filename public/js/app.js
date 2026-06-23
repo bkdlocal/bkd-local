@@ -15,6 +15,7 @@ const Router = {
     this.current = screenId;
     this.bindEvents();
     root.querySelector('.scroll-content')?.scrollTo(0, 0);
+    refreshUnreadBadge();
   },
 
   async refresh(opts) {
@@ -585,6 +586,27 @@ const Actions = {
   }
 };
 
+async function refreshUnreadBadge() {
+  try {
+    const r = await fetch('/api/baker/unread-count');
+    if (!r.ok) return;
+    const j = await r.json();
+    window.__unreadThreads = Number(j.count) || 0;
+    paintNavBadge();
+  } catch (_) {}
+}
+
+function paintNavBadge() {
+  const icon = document.querySelector('.bottom-nav [data-screen="messages"] .nav-icon');
+  if (!icon) return;
+  let b = icon.querySelector('.nav-badge');
+  const n = window.__unreadThreads || 0;
+  if (n > 0) {
+    if (!b) { b = document.createElement('span'); b.className = 'nav-badge'; icon.appendChild(b); }
+    b.textContent = n > 9 ? '9+' : String(n);
+  } else if (b) { b.remove(); }
+}
+
 async function renderPlaceholder(state, screenId) {
   const label = screenId.charAt(0).toUpperCase() + screenId.slice(1);
   let extra = '';
@@ -643,6 +665,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   try {
     await Api.getSession();
     Router.navigate('home');
+    setInterval(refreshUnreadBadge, 30000);
   } catch {
     // onUnauthorized already routed to login when status was 401
     if (Router.current !== 'login') Router.navigate('login');

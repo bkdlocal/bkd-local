@@ -57,6 +57,13 @@ h1, h2, h3, h4 { font-weight: 500; letter-spacing: -0.01em; }
   border-radius: 999px;
   font-weight: 500;
 }
+.site-nav .nav-badge {
+  display: inline-block; background: #C2557E; color: #fff;
+  font-size: 11px; font-weight: 500; min-width: 18px; height: 18px;
+  line-height: 18px; text-align: center; border-radius: 999px; padding: 0 5px;
+  margin-left: 2px; vertical-align: middle;
+}
+.site-nav .nav-badge[hidden] { display: none; }
 
 main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 

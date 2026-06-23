@@ -16,14 +16,20 @@ function renderStatusBar() {
 }
 
 function renderBottomNav(activeId) {
+  const unread = (typeof window !== 'undefined' && window.__unreadThreads) || 0;
   return `
     <nav class="bottom-nav">
-      ${NAV_ITEMS.map(item => `
+      ${NAV_ITEMS.map(item => {
+        const badge = (item.id === 'messages' && unread > 0)
+          ? `<span class="nav-badge">${unread > 9 ? '9+' : unread}</span>`
+          : '';
+        return `
         <button class="nav-item" type="button" data-screen="${item.id}">
-          <div class="nav-icon">${item.icon}</div>
+          <div class="nav-icon">${item.icon}${badge}</div>
           <div class="nav-label ${item.id === activeId ? 'nav-active' : ''}">${item.label}</div>
         </button>
-      `).join('')}
+      `;
+      }).join('')}
     </nav>
   `;
 }
