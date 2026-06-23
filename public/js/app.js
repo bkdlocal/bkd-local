@@ -562,7 +562,7 @@ const Actions = {
     } catch (e) { alert(e.message); }
   },
 
-  'auth:login': async ({ email, form }) => {
+  'auth:login': async ({ email, password, form }) => {
     const card = form.closest('.login-card');
     const errorEl = card.querySelector('.login-error');
     const submitBtn = form.querySelector('.login-submit');
@@ -570,7 +570,7 @@ const Actions = {
     submitBtn.disabled = true;
     submitBtn.textContent = 'Signing in…';
     try {
-      await Api.login(email);
+      await Api.login(email, password);
       Router.navigate('home');
     } catch (e) {
       errorEl.textContent = e.message;
@@ -578,6 +578,16 @@ const Actions = {
       submitBtn.disabled = false;
       submitBtn.textContent = 'Continue';
     }
+  },
+
+  'auth:forgot': async () => {
+    const input = document.querySelector('.login-form input[name="email"]');
+    const email = input ? input.value.trim() : '';
+    if (!email) { alert('Enter your baker email first, then tap set or reset password.'); return; }
+    try {
+      await Api.forgotPassword(email);
+      alert('If that email has a baker account, we sent a set-password link.');
+    } catch (e) { alert(e.message); }
   },
 
   'auth:logout': async () => {

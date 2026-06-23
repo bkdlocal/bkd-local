@@ -12,4 +12,9 @@ async function sendVerificationEmail({ to, link }) {
   return { stubbed: true };
 }
 
-module.exports = { isConfigured, sendVerificationEmail };
+async function sendSetPasswordEmail({ to, link }) {
+  console.log(`[email:stub] Set-password email for ${to}\n[email:stub]   link: ${link}`);
+  return { stubbed: true };
+}
+
+module.exports = { isConfigured, sendVerificationEmail, sendSetPasswordEmail };

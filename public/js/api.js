@@ -56,7 +56,8 @@ const Api = {
 
   getMode()    { return this._get('/api/mode'); },
   getSession() { return this._get('/api/auth/me'); },
-  login(email) { return this._post('/api/auth/login', { email }); },
+  login(email, password) { return this._post('/api/auth/login', { email, password }); },
+  forgotPassword(email)  { return this._post('/api/auth/forgot-password', { email }); },
   logout()     { return this._post('/api/auth/logout'); },
 
   getBaker()   { return this._get('/api/baker'); },

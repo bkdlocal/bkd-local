@@ -142,4 +142,23 @@ function renderAuth({ mode, redirect }) {
   });
 }
 
-module.exports = { renderOrderFlow, renderAuth };
+function renderBakerSetPassword({ token }) {
+  const body = `
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <h1>Set your baker password</h1>
+      <p class="muted">Choose a password to secure your Bkd Local baker account.</p>
+      <form id="setPwForm" data-token="${esc(token || '')}">
+        <div class="field"><label for="password">New password</label><input id="password" type="password" autocomplete="new-password" required></div>
+        <div class="field"><label for="confirm">Confirm password</label><input id="confirm" type="password" autocomplete="new-password" required></div>
+        <button type="submit" class="btn btn-primary btn-block" id="setPwSubmit">Set password</button>
+        <p class="form-error" id="setPwError" hidden></p>
+        <p class="form-note" id="setPwNote" hidden></p>
+      </form>
+    </div>
+  </div>
+  <script src="/js/baker-set-password.js"></script>`;
+  return layout({ title: 'Set your password · Bkd Local', description: '', body });
+}
+
+module.exports = { renderOrderFlow, renderAuth, renderBakerSetPassword };

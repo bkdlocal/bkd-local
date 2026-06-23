@@ -52,8 +52,10 @@ const MODE = airtable ? 'airtable' : 'mock';
 const customers = new CustomerStore(airtable);
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 const SERVICE_FEE = 1.5; // Phase 1 flat customer service fee, shown on the order request.
+const SETPW_TTL_MS = 72 * 60 * 60 * 1000; // baker set-password link validity
 const mockOrders = []; // mock-mode customer order store (in-memory)
 const mockMessages = []; // mock-mode unified Messages store (in-memory)
+const mockBakerFields = {}; // mock-mode baker auth fields (Password Hash, Set Password Token...)
 
 // Mock-only: one Fulfilled order so the rating flow is demonstrable in mock.
 // Owner is ratingdemo@test.com (sign that email up to claim it). Pickup = today
@@ -83,7 +85,7 @@ app.use((req, res, next) => {
   const cookies = parseCookies(req.headers.cookie);
   const token = cookies.bkd_session;
   const payload = verifySession(token, SESSION_SECRET);
-  if (payload && payload.email && payload.iat) {
+  if (payload && payload.email && payload.iat && payload.role === 'baker') {
     const age = Date.now() - payload.iat;
     if (age < SESSION_TTL_SECONDS * 1000) {
       req.user = { email: normEmail(payload.email) };
@@ -164,7 +166,7 @@ async function loadOrderForBaker(baker, orderId) {
 }
 
 function setSessionCookie(res, email) {
-  const token = signSession({ email, iat: Date.now() }, SESSION_SECRET);
+  const token = signSession({ email, role: 'baker', iat: Date.now() }, SESSION_SECRET);
   res.setHeader('Set-Cookie', buildCookie('bkd_session', token, {
     maxAge: SESSION_TTL_SECONDS,
     path: '/',
@@ -208,9 +210,53 @@ app.get('/api/mode', (req, res) => {
   });
 });
 
+// Raw Baker Profiles record for auth (Password Hash / token). Kept separate from
+// bakerFromRecord so the hash is never serialized to the client.
+async function findBakerAuthRecord(email) {
+  const e = normEmail(email);
+  if (MODE === 'mock') {
+    if (e !== normEmail(mock.baker.email)) return null;
+    return { id: mock.baker.id, fields: mockBakerFields, _mock: true, email: e };
+  }
+  const rec = await airtable.findOne('Baker Profiles', {
+    filterByFormula: `LOWER(TRIM({Email})) = '${escapeFormula(e)}'`
+  });
+  return rec ? { id: rec.id, fields: rec.fields, email: e } : null;
+}
+
+async function findBakerAuthByToken(token) {
+  const t = String(token || '');
+  if (!t) return null;
+  if (MODE === 'mock') {
+    return mockBakerFields['Set Password Token'] === t
+      ? { id: mock.baker.id, fields: mockBakerFields, _mock: true, email: normEmail(mock.baker.email) }
+      : null;
+  }
+  const rec = await airtable.findOne('Baker Profiles', {
+    filterByFormula: `{Set Password Token} = '${escapeFormula(t)}'`
+  });
+  return rec ? { id: rec.id, fields: rec.fields, email: normEmail(rec.fields['Email']) } : null;
+}
+
+async function updateBakerAuth(rec, fields) {
+  if (rec._mock) { Object.assign(mockBakerFields, fields); return; }
+  await airtable.update('Baker Profiles', rec.id, fields);
+}
+
+async function issueBakerSetPassword(req, rec, email) {
+  const token = generateToken();
+  const expires = new Date(Date.now() + SETPW_TTL_MS).toISOString();
+  await updateBakerAuth(rec, { 'Set Password Token': token, 'Set Password Token Expires': expires });
+  const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+  const link = `${base}/auth/set-password?token=${encodeURIComponent(token)}`;
+  await emailService.sendSetPasswordEmail({ to: email, link });
+  return link;
+}
+
 app.post('/api/auth/login', async (req, res, next) => {
   try {
     const email = normEmail(req.body?.email);
+    const password = String(req.body?.password || '');
     if (!email) return res.status(400).json({ error: 'Please enter your email.' });
 
     const baker = await lookupBakerByEmail(email);
@@ -222,8 +268,59 @@ app.post('/api/auth/login', async (req, res, next) => {
       });
     }
 
+    const authRec = await findBakerAuthRecord(email);
+    const hash = authRec && authRec.fields['Password Hash'];
+    if (!hash) {
+      // Hard cutover: no password set yet. Issue a set-password link, do not log in.
+      await issueBakerSetPassword(req, authRec, email);
+      return res.status(403).json({
+        error: 'Set up your password to continue. We just sent a set-password link to your email.',
+        needsPasswordSetup: true
+      });
+    }
+    if (!password) return res.status(400).json({ error: 'Email and password are required.' });
+    if (!verifyPassword(password, hash)) {
+      return res.status(401).json({ error: 'Incorrect email or password.' });
+    }
+
     setSessionCookie(res, baker.email);
     res.json({ ok: true, baker });
+  } catch (e) { next(e); }
+});
+
+// Baker sets their password from an emailed one-time link.
+app.get('/auth/set-password', (req, res) => {
+  res.type('html').send(orderFlow.renderBakerSetPassword({ token: req.query.token ? String(req.query.token) : '' }));
+});
+
+app.post('/api/auth/set-password', async (req, res, next) => {
+  try {
+    const token = String(req.body?.token || '');
+    const password = String(req.body?.password || '');
+    if (!token) return res.status(400).json({ error: 'Missing token.' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    const rec = await findBakerAuthByToken(token);
+    if (!rec) return res.status(400).json({ error: 'This set-password link is invalid or has already been used.' });
+    const expires = rec.fields['Set Password Token Expires'];
+    if (expires && Date.now() > new Date(expires).getTime()) {
+      return res.status(400).json({ error: 'This set-password link has expired. Please request a new one.' });
+    }
+    await updateBakerAuth(rec, {
+      'Password Hash': hashPassword(password),
+      'Set Password Token': null,
+      'Set Password Token Expires': null
+    });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// Forgot / re-issue set-password link. Generic response (no account enumeration).
+app.post('/api/auth/forgot-password', async (req, res, next) => {
+  try {
+    const email = normEmail(req.body?.email);
+    const authRec = email ? await findBakerAuthRecord(email) : null;
+    if (authRec) await issueBakerSetPassword(req, authRec, email);
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 

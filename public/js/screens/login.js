@@ -17,7 +17,7 @@ async function renderLogin() {
         <div class="login-card">
           <div class="login-hero">🧁</div>
           <div class="login-title">Welcome back</div>
-          <div class="login-sub">Enter your baker email to continue.</div>
+          <div class="login-sub">Enter your baker email and password to continue.</div>
 
           <form class="login-form" data-action="auth:login" novalidate>
             <input
@@ -31,8 +31,17 @@ async function renderLogin() {
               autocorrect="off"
               spellcheck="false"
             />
+            <input
+              type="password"
+              class="login-input"
+              name="password"
+              placeholder="Password"
+              autocomplete="current-password"
+            />
             <button type="submit" class="login-submit">Continue</button>
           </form>
+
+          <button type="button" class="login-forgot" data-action="auth:forgot">Set or reset your password</button>
 
           <div class="login-error" hidden></div>
 

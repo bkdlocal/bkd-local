@@ -511,6 +511,15 @@ body {
   color: var(--berry);
   line-height: 1.5;
 }
+.login-forgot {
+  margin-top: 14px;
+  background: none;
+  border: 0;
+  color: var(--berry);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
 .login-hint {
   margin-top: 16px;
   font-size: 11px;
