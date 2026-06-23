@@ -1,6 +1,23 @@
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
 
-const SMART_REPLY_SYSTEM = `You are helping a home baker respond to a customer message. Use the baker's FAQ answers to craft a warm, personal reply that sounds exactly like the baker wrote it herself. Never sound robotic or corporate. Keep it conversational and friendly.`;
+const SMART_REPLY_SYSTEM = `You write the exact reply a home baker will send to a customer, in her own warm, friendly voice.
+
+OUTPUT RULES (critical):
+- Return ONLY the message text to send, exactly as the baker would send it. Nothing else.
+- No preamble, no reasoning, no explanation, no meta-commentary, no notes about the FAQ.
+- Never say things like "since there are no FAQ answers" or describe what you are doing.
+- No separators such as ---, no markdown, no headings, no labels.
+- Do not wrap the message in quotation marks.
+- Keep it to 1 to 3 short sentences.
+
+VOICE AND BRAND RULES:
+- Sound like a real person texting a customer. Never robotic or corporate.
+- Do NOT use em dashes. Use commas, periods, or separate sentences.
+- Do NOT use emojis.
+- Never use the words "platform", "cottage baker", or "situation".
+- Never refer to women as "girls".
+- Do not sign off with the baker's name.
+- If FAQ answers are missing, just write a warm, helpful reply from the conversation. Never mention that any information is missing.`;
 
 const FAQ_LABELS = {
   specialties:        'What I bake',
@@ -37,7 +54,7 @@ function buildSmartReplyUserMessage({ baker, recentTurns, customerMessage }) {
   });
 
   return [
-    `Baker: ${baker.firstName} — signs as "${baker.firstName}"`,
+    `Baker: ${baker.firstName} (signs as "${baker.firstName}")`,
     `Business: ${baker.businessName || '(none)'}`,
     '',
     `FAQ answers in the baker's own voice:`,
@@ -74,9 +91,26 @@ async function callAnthropic({ apiKey, model, system, userMessage }) {
   return block ? block.text.trim() : '';
 }
 
+// Defense in depth: even with the strict system prompt, never let reasoning,
+// separators, em dashes, or emojis reach the customer.
+function sanitizeReply(text) {
+  let t = String(text || '');
+  // If the model emitted a "---" separator, keep only what follows the last one.
+  const parts = t.split(/\n?\s*-{3,}\s*\n?/);
+  if (parts.length > 1) t = parts[parts.length - 1];
+  // Drop surrounding quotes the model sometimes adds.
+  t = t.trim().replace(/^["'“”]+|["'“”]+$/g, '');
+  // No em dashes or en dashes (brand voice). Replace with a comma where spaced.
+  t = t.replace(/\s*[—–]\s*/g, ', ');
+  // Strip emojis and variation selectors.
+  t = t.replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2190}-\u{21FF}\u{2B00}-\u{2BFF}\u{1F1E6}-\u{1F1FF}\u{FE0F}]/gu, '');
+  // Tidy whitespace.
+  t = t.replace(/[ \t]{2,}/g, ' ').replace(/ +([.,!?])/g, '$1').replace(/\n{3,}/g, '\n\n').trim();
+  return t;
+}
+
 function fallbackSuggestion(baker, customerMessage) {
-  const first = baker.firstName || 'I';
-  return `Thanks for reaching out! Let me check my schedule and confirm a few details, then I'll get back to you with what's possible. — ${first}`;
+  return `Thanks so much for reaching out! Let me check my schedule and a few details, and I will get right back to you with what works.`;
 }
 
 async function smartReply({ baker, recentTurns, customerMessage, apiKey, model }) {
@@ -90,11 +124,14 @@ async function smartReply({ baker, recentTurns, customerMessage, apiKey, model }
       system: SMART_REPLY_SYSTEM,
       userMessage: buildSmartReplyUserMessage({ baker, recentTurns, customerMessage })
     });
-    return { suggestion: text || fallbackSuggestion(baker, customerMessage), source: text ? 'anthropic' : 'fallback' };
+    const cleaned = sanitizeReply(text);
+    return cleaned
+      ? { suggestion: cleaned, source: 'anthropic' }
+      : { suggestion: fallbackSuggestion(baker, customerMessage), source: 'fallback' };
   } catch (e) {
     console.error('[smartReply]', e.message);
     return { suggestion: fallbackSuggestion(baker, customerMessage), source: 'fallback', error: e.message };
   }
 }
 
-module.exports = { smartReply, SMART_REPLY_SYSTEM };
+module.exports = { smartReply, SMART_REPLY_SYSTEM, sanitizeReply };
