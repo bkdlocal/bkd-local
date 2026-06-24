@@ -33,6 +33,8 @@ const { CustomerStore, customerPublic } = require('./server/customers');
 const publicSite = require('./server/public-site');
 const publicData = require('./server/public-data');
 const orderFlow = require('./server/order-flow');
+const joinFlow = require('./server/join-flow');
+const stripeClient = require('./server/stripe');
 const customerSite = require('./server/customer-site');
 const messaging = require('./server/messaging');
 const ratings = require('./server/ratings');
@@ -54,6 +56,7 @@ const customers = new CustomerStore(airtable);
 const VERIFY_TTL_MS = 24 * 60 * 60 * 1000;
 const SERVICE_FEE = 1.5; // Phase 1 flat customer service fee, shown on the order request.
 const SETPW_TTL_MS = 72 * 60 * 60 * 1000; // baker set-password link validity
+const CHARTER_PRICE_CENTS = 9700; // Bkd Local Charter Membership: $97 one-time
 const mockOrders = []; // mock-mode customer order store (in-memory)
 const mockMessages = []; // mock-mode unified Messages store (in-memory)
 const mockBakerFields = {}; // mock-mode baker auth fields (Password Hash, Set Password Token...)
@@ -357,6 +360,137 @@ app.post('/api/auth/forgot-password', async (req, res, next) => {
 app.post('/api/auth/logout', (req, res) => {
   clearSessionCookie(res);
   res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Baker self-serve signup (/join). Replaces the Tally + Zapier intake.
+// Charter ($97 one-time) goes through Stripe Checkout and is verified paid
+// before any record is created; Beta (free) goes straight to the form. Both
+// finish by creating a Baker Profiles record and firing the existing
+// set-password email flow.
+// ---------------------------------------------------------------------------
+app.get('/join', (req, res) => {
+  res.type('html').send(joinFlow.renderJoin({
+    stripeReady: stripeClient.configured(),
+    error: req.query.error ? String(req.query.error) : ''
+  }));
+});
+
+app.post('/api/join/checkout', async (req, res, next) => {
+  try {
+    if (!stripeClient.configured()) {
+      return res.status(503).json({ error: 'Card checkout is temporarily unavailable. Please start with the free Beta, or check back shortly.' });
+    }
+    const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const session = await stripeClient.createCheckoutSession({
+      amount: CHARTER_PRICE_CENTS,
+      productName: 'Bkd Local Charter Membership',
+      successUrl: `${base}/join/complete?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${base}/join`,
+      metadata: { tier: 'charter' }
+    });
+    res.json({ url: session.url });
+  } catch (e) { next(e); }
+});
+
+// Stripe success redirect lands here. Verify the session is actually paid
+// before showing the finish form; otherwise bounce back to /join.
+app.get('/join/complete', async (req, res, next) => {
+  try {
+    const sessionId = req.query.session_id ? String(req.query.session_id) : '';
+    if (!sessionId || !stripeClient.configured()) return res.redirect('/join?error=payment');
+    let session;
+    try { session = await stripeClient.retrieveCheckoutSession(sessionId); }
+    catch (e) { return res.redirect('/join?error=payment'); }
+    if (!session || session.payment_status !== 'paid') return res.redirect('/join?error=payment');
+    res.type('html').send(joinFlow.renderFinish({
+      tier: 'charter',
+      sessionId,
+      email: (session.customer_details && session.customer_details.email) || ''
+    }));
+  } catch (e) { next(e); }
+});
+
+// Beta entry to the finish form. Charter cannot be obtained here: the tier is
+// forced to 'beta', and /api/join/finish re-verifies payment for Charter anyway.
+app.get('/join/finish', (req, res) => {
+  res.type('html').send(joinFlow.renderFinish({ tier: 'beta', sessionId: '', email: '' }));
+});
+
+app.post('/api/join/finish', async (req, res, next) => {
+  try {
+    if (!airtable) return res.status(503).json({ error: 'Signup is unavailable in demo mode.' });
+    const b = req.body || {};
+    const tier = b.tier === 'charter' ? 'charter' : 'beta';
+
+    // Charter must present a Stripe session that is verified paid here, so the
+    // finish endpoint can't be called directly to mint a free Charter account.
+    if (tier === 'charter') {
+      if (!stripeClient.configured()) return res.status(503).json({ error: 'Payment is temporarily unavailable.' });
+      const sessionId = String(b.sessionId || '');
+      if (!sessionId) return res.status(402).json({ error: 'Payment could not be verified. Please start again.' });
+      let session;
+      try { session = await stripeClient.retrieveCheckoutSession(sessionId); }
+      catch (e) { return res.status(402).json({ error: 'Payment could not be verified. Please start again.' }); }
+      if (!session || session.payment_status !== 'paid') {
+        return res.status(402).json({ error: 'Payment could not be verified. Please start again.' });
+      }
+    }
+
+    const firstName = String(b.firstName || '').trim();
+    const lastName = String(b.lastName || '').trim();
+    const bakeryName = String(b.bakeryName || '').trim();
+    const email = normEmail(b.email);
+    const phone = String(b.phone || '').trim();
+    let city = String(b.city || '').trim();
+    const zip = String(b.zip || '').trim();
+
+    if (!firstName || !lastName) return res.status(400).json({ error: 'Please enter your first and last name.' });
+    if (!bakeryName) return res.status(400).json({ error: 'Please enter your bakery name.' });
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+    if (city && !/,\s*TN$/i.test(city)) city = `${city}, TN`;
+
+    // One Baker Profile per email.
+    const existing = await findBakerAuthRecord(email);
+    if (existing) {
+      return res.status(409).json({ error: 'An account already exists for that email. Try logging in or resetting your password.' });
+    }
+
+    const fields = {
+      'Contact Name': `${firstName} ${lastName}`,
+      'Business Name': bakeryName,
+      'Email': email,
+      'Profile Status': 'Incomplete'
+    };
+    if (phone) fields['Phone'] = phone;
+    if (city) fields['City'] = city;
+    if (zip) fields['Zip Code'] = zip;
+    if (tier === 'charter') {
+      fields['Tier'] = 'Charter';
+      fields['Fee Rate'] = 0.05;                  // 5% lifetime
+      fields['Fee Rate (legacy text)'] = '5%';    // exact live single-select option
+      fields['Badge'] = 'Founding Baker';
+    } else {
+      fields['Tier'] = 'Beta';
+      fields['Fee Rate'] = 0;                      // free for the 90-day beta window
+      fields['Fee Rate (legacy text)'] = '0% (90 days)';
+      // Badge intentionally left blank for Beta.
+    }
+
+    const rec = await airtable.create('Baker Profiles', fields);
+
+    // Fire the set-password email through the existing forgot-password flow.
+    try {
+      await issueBakerSetPassword(req, { id: rec.id, fields: rec.fields, email }, email);
+    } catch (e) {
+      // Account exists but the email didn't send. Don't fail the signup; tell
+      // them to use the reset-password link instead.
+      console.error('[join] set-password email failed:', e.message);
+      return res.status(200).json({ ok: true, emailWarning: true, recordId: rec.id });
+    }
+
+    res.json({ ok: true, recordId: rec.id });
+  } catch (e) { next(e); }
 });
 
 app.get('/api/auth/me', async (req, res, next) => {
