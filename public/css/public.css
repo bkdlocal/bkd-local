@@ -412,6 +412,46 @@ textarea {
 .sum-total .sum-row { font-weight: 500; font-size: 18px; padding-top: 8px; }
 .sum-total .sum-row span:last-child { color: var(--berry); }
 .pay-note { background: #f3eafb; color: #6b5a72; border-radius: 14px; padding: 12px 16px; font-size: 13px; margin: 18px 0; }
+.tax-disclaimer { color: #7A5068; font-size: 11px; font-weight: 400; text-align: center; margin-top: 14px; }
+
+/* Logged-out signup modal on baker profiles */
+.bsm-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(44, 26, 36, 0.5);
+  display: flex; align-items: center; justify-content: center; padding: 18px;
+}
+.bsm-overlay[hidden] { display: none; }
+.bsm-card {
+  width: 100%; max-width: 420px; background: #FDF6F9;
+  border-radius: 20px; overflow: hidden; box-shadow: 0 20px 60px rgba(44, 26, 36, 0.35);
+}
+.bsm-header {
+  background: #C2557E; padding: 14px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.bsm-logo { color: #fff; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+.bsm-close { background: none; border: 0; color: #fff; font-size: 24px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.bsm-body { padding: 22px 22px 24px; }
+.bsm-title { margin: 0 0 8px; color: #2C1A24; font-size: 20px; font-weight: 500; line-height: 1.25; }
+.bsm-sub { margin: 0 0 18px; color: #7A5068; font-size: 14px; line-height: 1.5; }
+.bsm-form { display: flex; flex-direction: column; gap: 10px; }
+.bsm-two { display: flex; gap: 10px; }
+.bsm-two input { flex: 1; min-width: 0; }
+.bsm-form input {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 15px; color: #2C1A24;
+  background: #fff; border: 1.5px solid #D4C8E0; border-radius: 12px; padding: 12px 14px;
+}
+.bsm-form input::placeholder { color: #7A5068; }
+.bsm-form input:focus { outline: none; border-color: #C2557E; }
+.bsm-submit {
+  margin-top: 4px; background: #C2557E; color: #fff; border: 0;
+  font-family: inherit; font-size: 15px; font-weight: 500;
+  padding: 14px; border-radius: 999px; cursor: pointer;
+}
+.bsm-submit:disabled { opacity: 0.7; cursor: wait; }
+.bsm-error { margin: 4px 0 0; color: #C2557E; font-size: 13px; }
+.bsm-signin { margin: 16px 0 0; text-align: center; color: #7A5068; font-size: 13px; }
+.bsm-signin a { color: #C2557E; font-weight: 500; }
 
 .done-card { text-align: center; padding: 40px 16px; }
 .done-emoji { font-size: 52px; }
@@ -586,6 +626,7 @@ textarea {
 .site-footer { border-top: 1px solid var(--line); margin-top: 48px; padding: 32px 24px; text-align: center; color: var(--mauve); font-size: 14px; }
 .footer-links { margin-top: 6px; }
 .footer-links a { color: var(--berry); }
+.footer-baker-cta { display: block; margin-top: 14px; color: #7A5068; font-size: 12px; text-decoration: none; }
 
 /* Responsive */
 @media (max-width: 640px) {

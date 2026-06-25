@@ -81,6 +81,7 @@ function renderOrderFlow({ baker, item, availableDates, serviceFee, viewer }) {
     <section class="ostep" data-step="3">
       <h2>Review your request</h2>
       <div class="summary" id="summary"></div>
+      <p class="tax-disclaimer">Bakers are independent sellers responsible for their own tax obligations. Bkd Local does not collect or remit sales tax.</p>
       <div class="field">
         <label for="orderNotes">Any details for your baker? (optional)</label>
         <textarea id="orderNotes" rows="3" placeholder="Colors, theme, flavors, allergies, pickup time..."></textarea>

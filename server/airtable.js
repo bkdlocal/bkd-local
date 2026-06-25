@@ -84,6 +84,43 @@ class AirtableClient {
     if (!res.ok) throw new AirtableError(res.status, await res.text());
     return res.json();
   }
+
+  // Field-name set for a table, via the Meta API (cached ~5 min so newly-added
+  // Airtable fields are picked up without a server restart). Returns null when
+  // the schema can't be read, so callers can choose to pass payloads through.
+  async tableFieldNames(table) {
+    const now = (this._schemaAt && this._schemaTime) ? Date.now() - this._schemaTime : Infinity;
+    if (this._schemaAt && now < 5 * 60 * 1000) return this._schemaAt[table] || null;
+    try {
+      const res = await fetch(`${AIRTABLE_API_BASE}/meta/bases/${this.baseId}/tables`, { headers: this.headers() });
+      if (!res.ok) return this._schemaAt ? (this._schemaAt[table] || null) : null;
+      const json = await res.json();
+      const map = {};
+      for (const t of json.tables || []) map[t.name] = new Set((t.fields || []).map(f => f.name));
+      this._schemaAt = map;
+      this._schemaTime = Date.now();
+      return map[table] || null;
+    } catch (_) {
+      return this._schemaAt ? (this._schemaAt[table] || null) : null;
+    }
+  }
+
+  // True/false/null(unknown) for whether a single field exists on a table.
+  async hasField(table, field) {
+    const set = await this.tableFieldNames(table);
+    if (!set) return null;
+    return set.has(field);
+  }
+
+  // Drop keys that aren't real columns so create/update never 422s on a field
+  // the user hasn't added yet. If the schema can't be read, pass through.
+  async knownFields(table, fields) {
+    const set = await this.tableFieldNames(table);
+    if (!set) return { ...fields };
+    const out = {};
+    for (const k of Object.keys(fields)) if (set.has(k)) out[k] = fields[k];
+    return out;
+  }
 }
 
 function normEmail(s) {
@@ -164,6 +201,7 @@ function bakerFromRecord(rec) {
     tier: f['Tier'] || null,
     feeRate: parseFeeRate(f['Fee Rate']),
     pickupLocation: f['Exact Pick-up Address'] || null,
+    pickupWindows: f['Pick-up Windows'] || null,
     profileStatus: f['Profile Status'] || null,
     badge: f['Badge'] || null,
     bio: f['Bio'] || null,

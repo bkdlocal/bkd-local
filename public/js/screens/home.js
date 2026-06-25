@@ -9,8 +9,10 @@ async function renderHome() {
 
   const net = computeNet(earnings.gross, baker.feeRate);
   // Canonical public profile link bakers paste into their Instagram bio or send
-  // to customers — always the production URL, regardless of where this runs.
-  const shareUrl = 'https://bkd-local-production.up.railway.app/bakers/' + baker.id;
+  // to customers — always the production URL. The ?ref param (baker email,
+  // encoded) lets us attribute customer signups back to this baker.
+  const shareUrl = 'https://bkd-local-production.up.railway.app/bakers/' + baker.id +
+    (baker.email ? '?ref=' + encodeURIComponent(baker.email) : '');
 
   return `
     <div class="screen">

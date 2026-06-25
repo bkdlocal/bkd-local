@@ -123,6 +123,7 @@ function footer() {
   return `<footer class="site-footer">
     <div>© Bkd Local · local bakers, baked to order</div>
     <div class="footer-links"><a href="/bakers">Browse bakers</a> · <a href="/app">For bakers</a></div>
+    <a class="footer-baker-cta" href="/join">Are you a baker? Join Bkd Local</a>
   </footer>`;
 }
 
@@ -377,6 +378,35 @@ function reviewsSection(reviews) {
   return `<section class="profile-section"><div class="section-label">Reviews</div><div class="reviews">${items}</div></section>`;
 }
 
+// On-brand signup modal shown to logged-out visitors who tap "Request an order".
+function bakerSignupModal(baker) {
+  return `
+  <div class="bsm-overlay" id="bakerSignupModal" data-baker-id="${esc(baker.id)}" hidden>
+    <div class="bsm-card" role="dialog" aria-modal="true" aria-label="Create your account">
+      <div class="bsm-header">
+        <span class="bsm-logo">bkdlocal</span>
+        <button type="button" class="bsm-close" data-bsm-close aria-label="Close">&times;</button>
+      </div>
+      <div class="bsm-body">
+        <h2 class="bsm-title">Create your free account to place your order</h2>
+        <p class="bsm-sub">It only takes a minute, and your order will be waiting when you're done.</p>
+        <form id="bsmForm" class="bsm-form" novalidate>
+          <div class="bsm-two">
+            <input name="firstName" type="text" placeholder="First name" autocomplete="given-name" required>
+            <input name="lastName" type="text" placeholder="Last name" autocomplete="family-name">
+          </div>
+          <input name="email" type="email" placeholder="Email" autocomplete="email" required>
+          <input name="password" type="password" placeholder="Password" autocomplete="new-password" required>
+          <button type="submit" class="bsm-submit">Create account and continue</button>
+          <p class="bsm-error" id="bsmError" hidden></p>
+        </form>
+        <p class="bsm-signin">Already have an account? <a href="#" data-bsm-signin>Sign in</a></p>
+      </div>
+    </div>
+  </div>
+  <script src="/js/baker-signup-modal.js"></script>`;
+}
+
 function renderProfile({ baker, menu, reviews, viewer }) {
   const ig = instagramUrl(baker.instagram);
   const bannerStyle = baker.photo ? ` style="background-image:url('${esc(baker.photo)}')"` : '';
@@ -407,7 +437,8 @@ function renderProfile({ baker, menu, reviews, viewer }) {
       </div>
       <div class="custom-quote">Want something you don't see? <a href="/customer/messages?baker=${esc(baker.id)}&amp;quote=1">Message this baker for a custom quote.</a></div>
     </div>
-  </article>`;
+  </article>
+  ${(viewer && viewer.customer) ? '' : bakerSignupModal(baker)}`;
   const desc = baker.bio || `${baker.businessName}, a verified local baker${baker.city ? ` in ${shortCity(baker.city)}` : ''} on Bkd Local.`;
   return layout({ title: `${baker.businessName} · Bkd Local`, description: desc, body, viewer });
 }

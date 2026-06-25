@@ -38,6 +38,8 @@ const stripeClient = require('./server/stripe');
 const customerSite = require('./server/customer-site');
 const messaging = require('./server/messaging');
 const ratings = require('./server/ratings');
+const reminders = require('./server/reminders');
+const { buildPickupIcs } = require('./server/ics');
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = getSessionSecret();
@@ -581,8 +583,31 @@ app.post('/api/orders/:id/accept', requireAuth, async (req, res, next) => {
     // (no Stripe), so we never mark it paid here.
     await airtable.update('Orders', req.params.id, { 'Order Status': 'Confirmed' });
     res.json({ ok: true });
+    // Best-effort: email both parties a calendar invite (does not block the response).
+    sendPickupInvites(baker, existing).catch(e => console.error('[invite]', e.message));
   } catch (e) { next(e); }
 });
+
+// Email baker + customer an .ics pickup invite when an order is confirmed.
+async function sendPickupInvites(baker, order) {
+  if (!order || !order.pickupDate) return;
+  const itemName = order.item || 'Order';
+  const title = `${itemName} pickup, Bkd Local`;
+  const location = baker.pickupLocation || '';
+  const customerName = order.customerName || 'Customer';
+  const bakerName = baker.businessName || 'Baker';
+  const windowText = baker.pickupWindows ? `Pickup window: ${baker.pickupWindows}. ` : '';
+  const description = `${windowText}Baker: ${bakerName}. Customer: ${customerName}. Item: ${itemName}.`;
+  const stamp = new Date();
+  if (baker.email) {
+    const ics = buildPickupIcs({ uid: `${order.id}-baker@bkdlocal.com`, date: order.pickupDate, title, location, description, stamp });
+    await emailService.sendCalendarInvite({ to: baker.email, recipientName: baker.firstName, itemName, ics });
+  }
+  if (order.customerEmail) {
+    const ics = buildPickupIcs({ uid: `${order.id}-customer@bkdlocal.com`, date: order.pickupDate, title, location, description, stamp });
+    await emailService.sendCalendarInvite({ to: order.customerEmail, recipientName: String(customerName).split(' ')[0] || '', itemName, ics });
+  }
+}
 
 app.post('/api/orders/:id/decline', requireAuth, async (req, res, next) => {
   try {
@@ -1027,6 +1052,61 @@ app.post('/api/customer/signup', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Quick signup from the baker-profile modal: create the account, log in
+// immediately (trusted referral flow, no email-verification gate), and capture
+// referral attribution. Unknown tracking fields are stripped so the create
+// never fails if the user has not added those Airtable columns yet.
+app.post('/api/customer/quick-signup', async (req, res, next) => {
+  try {
+    const email = normEmail(req.body?.email);
+    const password = String(req.body?.password || '');
+    const firstName = String(req.body?.firstName || '').trim();
+    const lastName = String(req.body?.lastName || '').trim();
+    if (!isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
+    if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
+    if (!firstName) return res.status(400).json({ error: 'First name is required.' });
+
+    const existing = await customers.findByEmail(email);
+    if (existing) return res.status(409).json({ error: 'An account with that email already exists. Please sign in.' });
+
+    // Resolve the baker whose profile drove this signup (for attribution).
+    let bakerEmail = '';
+    if (req.body?.bakerId && MODE === 'airtable') {
+      try {
+        const b = await airtable.findById('Baker Profiles', String(req.body.bakerId));
+        bakerEmail = normEmail(b && b.fields && b.fields['Email']);
+      } catch (_) {}
+    }
+    let referredBy = '';
+    try { referredBy = req.body?.ref ? decodeURIComponent(String(req.body.ref)) : ''; }
+    catch (_) { referredBy = String(req.body?.ref || ''); }
+
+    let fields = {
+      'First Name': firstName,
+      'Last Name': lastName || undefined,
+      'Email': email,
+      'Password Hash': hashPassword(password),
+      'Email Verified': true,
+      'Rating Count': 0,
+      'Account Created': new Date().toISOString().slice(0, 10),
+      'Source': 'Baker profile referral',
+      'Baker Email': bakerEmail || undefined,
+      'Referred By Baker Email': normEmail(referredBy) || undefined
+    };
+    // Drop tracking columns that don't exist in Airtable yet (graceful no-op).
+    if (MODE === 'airtable') {
+      const before = Object.keys(fields);
+      fields = await airtable.knownFields('Customers', fields);
+      const dropped = before.filter(k => !(k in fields));
+      if (dropped.length) console.warn(`[quick-signup] Customers table missing fields, not stored: ${dropped.join(', ')}`);
+    }
+
+    const rec = await customers.create(fields);
+    setCustomerSessionCookie(res, email);
+    res.json({ ok: true, customer: customerPublic(rec) });
+  } catch (e) { next(e); }
+});
+
 app.post('/api/customer/login', async (req, res, next) => {
   try {
     const email = normEmail(req.body?.email);
@@ -1288,7 +1368,12 @@ app.delete('/api/availability/slots/:id', requireAuth, async (req, res, next) =>
 async function loadPublicBakers() {
   if (MODE === 'mock') return [publicData.publicBakerFromMock(mock.baker)];
   const records = await airtable.list('Baker Profiles', {
-    filterByFormula: "{Profile Status} = 'Live'"
+    filterByFormula: "{Profile Status} = 'Live'",
+    // Charter bakers (Search Priority 1) first, then Beta (2); Business Name as tiebreaker.
+    sort: [
+      { field: 'Search Priority', direction: 'asc' },
+      { field: 'Business Name', direction: 'asc' }
+    ]
   });
   return records.map(publicData.publicBakerFromRecord);
 }
@@ -2084,4 +2169,5 @@ app.listen(PORT, () => {
     console.log(`Mode: MOCK      (log in with: ${mock.baker.email})`);
     console.log('   Add AIRTABLE_API_KEY + AIRTABLE_BASE_ID to .env to switch to real data.\n');
   }
+  reminders.start({ airtable });
 });
