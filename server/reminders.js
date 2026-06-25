@@ -37,6 +37,39 @@ function addDays(ymd, n) {
   return `${nd.getUTCFullYear()}-${p(nd.getUTCMonth() + 1)}-${p(nd.getUTCDate())}`;
 }
 
+// 'YYYY-MM-DD' -> 'Saturday, July 10, 2026' (rendered in Central, no tz shift).
+function prettyDate(ymd) {
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Chicago', weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+    }).format(new Date(Date.UTC(y, m - 1, d, 12)));
+  } catch (_) { return ymd; }
+}
+
+// 'Mae Carter' -> 'Mae C.'
+function customerLabel(full) {
+  const parts = String(full || '').trim().split(/\s+/);
+  if (!parts[0]) return 'your customer';
+  return parts[1] ? `${parts[0]} ${parts[1][0].toUpperCase()}.` : parts[0];
+}
+
+function money(n) {
+  const v = Number(n);
+  return Number.isFinite(v) ? `$${v.toFixed(2)}` : null;
+}
+
+// Baker payout: the "Baker Payout" field if present, else Item Subtotal x (1 - Fee Rate).
+function bakerPayout(orderFields, bakerFields) {
+  if (orderFields['Baker Payout'] != null && orderFields['Baker Payout'] !== '') {
+    return money(orderFields['Baker Payout']);
+  }
+  const subtotal = Number(orderFields['Item Subtotal']);
+  const feeRate = Number(bakerFields['Fee Rate']);
+  if (Number.isFinite(subtotal) && Number.isFinite(feeRate)) return money(subtotal * (1 - feeRate));
+  return null;
+}
+
 async function loadBakerProfile(airtable, cache, bakerEmail) {
   const key = normEmail(bakerEmail);
   if (!key) return null;
@@ -95,31 +128,38 @@ async function runTick(airtable) {
     const bf = (bakerRec && bakerRec.fields) || {};
     const bakerName = f['Baker Name'] || bf['Business Name'] || 'your baker';
     const bakerFirst = firstName(bf['Contact Name']);
-    const pickupAddress = bf['Exact Pick-up Address'] || '';
-    const pickupTime = bf['Pick-up Windows'] || '';
+    // Address/time prefer an Orders column if present, else the baker profile.
+    const pickupAddress = f['Exact Pick-up Address'] || bf['Exact Pick-up Address'] || '';
+    const pickupTime = f['Pickup Time'] || bf['Pick-up Windows'] || '';
+    const pickupDatePretty = prettyDate(pickup);
+    const quantity = (f['Quantity'] != null && f['Quantity'] !== '') ? String(f['Quantity']) : null;
+    const payout = bakerPayout(f, bf);
     const orderUrl = `${email.publicBase()}/customer/orders/${rec.id}`;
 
     try {
       if (isTomorrow && hasBaker && !f[FIELD_BAKER] && bakerEmail) {
         await email.sendBakerReminder({
-          to: bakerEmail, bakerFirstName: bakerFirst, customerFirstName: firstName(customerName),
-          itemName, quantity: null, pickupDate: pickup, pickupTime
+          to: bakerEmail, bakerFirstName: bakerFirst, customerLabel: customerLabel(customerName),
+          itemName, quantity, pickupDate: pickupDatePretty, pickupTime, payout
         });
         await airtable.update('Orders', rec.id, { [FIELD_BAKER]: true });
+        console.log(`[reminders] baker 24h sent for order ${rec.id} -> ${bakerEmail}`);
       }
       if (isTomorrow && hasCust24h && !f[FIELD_CUST_24H] && customerEmail) {
         await email.sendCustomerReminder24h({
           to: customerEmail, customerFirstName: firstName(customerName), bakerName,
-          itemName, quantity: null, pickupDate: pickup, pickupTime, pickupAddress, orderUrl
+          itemName, pickupDate: pickupDatePretty, pickupTime, pickupAddress, orderUrl
         });
         await airtable.update('Orders', rec.id, { [FIELD_CUST_24H]: true });
+        console.log(`[reminders] customer 24h sent for order ${rec.id} -> ${customerEmail}`);
       }
       if (isToday && hour >= 8 && hasDayOf && !f[FIELD_CUST_DAYOF] && customerEmail) {
         await email.sendCustomerReminderDayOf({
           to: customerEmail, customerFirstName: firstName(customerName), bakerName,
-          itemName, quantity: null, pickupDate: pickup, pickupTime, pickupAddress, orderUrl
+          itemName, pickupTime, pickupAddress, orderUrl
         });
         await airtable.update('Orders', rec.id, { [FIELD_CUST_DAYOF]: true });
+        console.log(`[reminders] customer day-of sent for order ${rec.id} -> ${customerEmail}`);
       }
     } catch (e) {
       console.error(`[reminders] failed for order ${rec.id}:`, e.message);

@@ -87,74 +87,148 @@ function brandedEmail({ heading, paragraphs = [], ctaText, ctaUrl, highlightHtml
 </body></html>`;
 }
 
-function detailRow(label, value) {
-  return `<div><strong style="font-weight:500;">${escEmail(label)}:</strong> ${escEmail(value)}</div>`;
+// ── Reminder email design system ──────────────────────────────────────────
+// Inline-styled, 600px centered, ombre header with the bkdlocal wordmark + pin,
+// order detail card, optional pickup-address box, full-width Berry CTA. (Inline
+// SVG pin renders in Apple Mail and many clients; Gmail strips SVG and just
+// shows the wordmark, which is acceptable graceful degradation.)
+const PIN_SVG = `<span style="display:inline-block;vertical-align:middle;margin-left:2px;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#C2557E" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"></path><path d="M17.657 16.657l-4.243 4.243a2 2 0 0 1 -2.827 0l-4.244 -4.243a8 8 0 1 1 11.314 0z"></path></svg></span>`;
+
+function orderCard(rows) {
+  const cells = rows.filter(r => r && r.value != null && r.value !== '').map((r, i) => {
+    const top = i > 0 ? 'border-top:0.5px solid #F2C4D8;' : '';
+    return `<tr>
+      <td style="padding:11px 16px;${top}"><span style="color:#7A5068;font-size:12px;font-family:'Poppins',Arial,Helvetica,sans-serif;">${escEmail(r.label)}</span></td>
+      <td style="padding:11px 16px;${top}text-align:right;"><span style="color:#2C1A24;font-size:12px;font-weight:500;font-family:'Poppins',Arial,Helvetica,sans-serif;">${escEmail(r.value)}</span></td>
+    </tr>`;
+  }).join('');
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FDF6F9;border:1.5px solid #F2C4D8;border-radius:12px;margin:6px 0 18px;">${cells}</table>`;
 }
 
-// 24h-before reminder to the baker.
-async function sendBakerReminder({ to, bakerFirstName, customerFirstName, itemName, quantity, pickupDate, pickupTime }) {
-  const highlight = [
-    detailRow('Customer', customerFirstName),
-    detailRow('Order', `${quantity ? quantity + ' x ' : ''}${itemName}`),
-    detailRow('Pickup date', pickupDate),
-    pickupTime ? detailRow('Pickup time', pickupTime) : ''
-  ].filter(Boolean).join('');
+function addressBox(address) {
+  if (!address) return '';
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;"><tr>
+    <td style="background:#FDF6F9;border-left:3px solid #C2557E;border-radius:0 12px 12px 0;padding:12px 16px;">
+      <div style="color:#C2557E;font-size:10px;text-transform:uppercase;letter-spacing:0.08em;font-family:'Poppins',Arial,Helvetica,sans-serif;">Pickup address</div>
+      <div style="color:#2C1A24;font-size:14px;font-weight:500;margin-top:3px;font-family:'Poppins',Arial,Helvetica,sans-serif;">${escEmail(address)}</div>
+    </td></tr></table>`;
+}
+
+// Full reminder email. headlineHtml is trusted (built below with accent spans).
+function reminderEmail({ celebration, eyebrow, headlineHtml, bodyText, rows = [], address, ctaText, ctaUrl, afterNote }) {
+  const ff = "font-family:'Poppins',Arial,Helvetica,sans-serif;";
+  const celebrationBar = celebration
+    ? `<tr><td style="background:#C2557E;background:linear-gradient(135deg,#C2557E 0%,#7A5068 100%);padding:16px 24px;text-align:center;">
+        <div style="color:#ffffff;font-size:16px;font-weight:500;${ff}">${escEmail(celebration.title)}</div>
+        <div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:2px;${ff}">${escEmail(celebration.subtitle)}</div>
+      </td></tr>`
+    : '';
+  const cta = (ctaText && ctaUrl)
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 2px;"><tr>
+        <td style="background:#C2557E;border-radius:50px;text-align:center;">
+          <a href="${escEmail(ctaUrl)}" style="display:block;padding:16px;color:#ffffff;text-decoration:none;font-size:15px;font-weight:500;${ff}">${escEmail(ctaText)}</a>
+        </td></tr></table>`
+    : '';
+  const note = afterNote
+    ? `<div style="border-top:0.5px solid #F2C4D8;margin:22px 0 0;padding-top:18px;"></div>
+       <p style="margin:0;color:#7A5068;font-size:14px;line-height:1.7;${ff}">${escEmail(afterNote)}</p>`
+    : '';
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap" rel="stylesheet">
+<style>@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap');</style></head>
+<body style="margin:0;padding:0;background:#FDF6F9;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FDF6F9;${ff}"><tr><td align="center" style="padding:0;">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;">
+      ${celebrationBar}
+      <tr><td style="background:#F2C4D8;background:linear-gradient(160deg,#D4C8E0 0%,#F2C4D8 55%,#FDF6F9 100%);padding:30px 24px 26px;text-align:center;">
+        <div style="font-size:26px;font-weight:600;letter-spacing:-0.02em;line-height:1;${ff}"><span style="color:#C2557E;">bkd</span><span style="color:#2C1A24;">local</span>${PIN_SVG}</div>
+        <div style="margin-top:8px;color:#7A5068;font-size:11px;letter-spacing:0.12em;text-transform:uppercase;${ff}">local bakers, baked to order</div>
+      </td></tr>
+      <tr><td style="background:#ffffff;padding:40px;">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:0.12em;color:#7A5068;${ff}">${escEmail(eyebrow)}</div>
+        <h1 style="margin:8px 0 16px;font-size:22px;font-weight:500;color:#2C1A24;line-height:1.3;${ff}">${headlineHtml}</h1>
+        <p style="margin:0 0 18px;color:#7A5068;font-size:14px;line-height:1.7;${ff}">${escEmail(bodyText)}</p>
+        ${orderCard(rows)}
+        ${addressBox(address)}
+        ${cta}
+        ${note}
+      </td></tr>
+      <tr><td style="background:#ffffff;padding:0 40px 34px;">
+        <div style="border-top:0.5px solid #F2C4D8;padding-top:18px;text-align:center;color:#7A5068;font-size:11px;line-height:1.7;${ff}">Bkd Local, local bakers baked to order<br><a href="${escEmail(publicBase())}" style="color:#C2557E;text-decoration:none;">bkdlocal.com</a></div>
+      </td></tr>
+    </table>
+  </td></tr></table>
+</body></html>`;
+}
+
+// Email 1 — baker, 24h before pickup.
+async function sendBakerReminder({ to, bakerFirstName, customerLabel, itemName, quantity, pickupDate, pickupTime, payout }) {
   return send({
     to,
-    subject: "You have an order tomorrow, here's what you need to know",
-    html: brandedEmail({
-      heading: `Hi ${bakerFirstName}, you have a pickup tomorrow`,
-      paragraphs: [`Just a friendly heads up that ${escEmail(customerFirstName)} is picking up their order tomorrow. Here are the details so you can plan your bake.`],
-      highlightHtml: highlight,
-      ctaText: 'Open your dashboard',
+    subject: 'You have an order pickup tomorrow',
+    html: reminderEmail({
+      eyebrow: 'Order reminder',
+      headlineHtml: `You have an order pickup <span style="color:#C2557E;">tomorrow</span>.`,
+      bodyText: `Hey ${bakerFirstName}! Just a heads up, ${customerLabel} has an order scheduled for tomorrow. Here's everything you need to know.`,
+      rows: [
+        { label: 'Customer', value: customerLabel },
+        { label: 'Item', value: itemName },
+        { label: 'Quantity', value: quantity },
+        { label: 'Pickup date', value: pickupDate },
+        { label: 'Pickup time', value: pickupTime },
+        { label: 'Your payout', value: payout }
+      ],
+      ctaText: 'View order in your dashboard',
       ctaUrl: `${publicBase()}/app`
     }),
-    text: `Hi ${bakerFirstName}, ${customerFirstName} has a pickup tomorrow (${pickupDate}${pickupTime ? ', ' + pickupTime : ''}): ${quantity ? quantity + ' x ' : ''}${itemName}. Open your dashboard: ${publicBase()}/app`
+    text: `Hey ${bakerFirstName}! ${customerLabel} has an order pickup tomorrow (${pickupDate}${pickupTime ? ', ' + pickupTime : ''}): ${itemName}${payout ? '. Your payout: ' + payout : ''}. View it in your dashboard: ${publicBase()}/app`
   });
 }
 
-// 24h-before reminder to the customer.
-async function sendCustomerReminder24h({ to, customerFirstName, bakerName, itemName, quantity, pickupDate, pickupTime, pickupAddress, orderUrl }) {
-  const highlight = [
-    detailRow('Baker', bakerName),
-    detailRow('Order', `${quantity ? quantity + ' x ' : ''}${itemName}`),
-    detailRow('Pickup date', pickupDate),
-    pickupTime ? detailRow('Pickup time', pickupTime) : '',
-    pickupAddress ? detailRow('Pickup address', pickupAddress) : ''
-  ].filter(Boolean).join('');
+// Email 2 — customer, 24h before pickup.
+async function sendCustomerReminder24h({ to, customerFirstName, bakerName, itemName, pickupDate, pickupTime, pickupAddress, orderUrl }) {
   return send({
     to,
     subject: 'Your order is almost ready, pickup is tomorrow',
-    html: brandedEmail({
-      heading: `Hi ${customerFirstName}, your order is almost ready`,
-      paragraphs: [`Your order from ${escEmail(bakerName)} is being made and pickup is tomorrow. Here is everything you need.`],
-      highlightHtml: highlight,
+    html: reminderEmail({
+      eyebrow: 'Pickup reminder',
+      headlineHtml: `Your order is almost ready, pickup is <span style="color:#C2557E;">tomorrow</span>.`,
+      bodyText: `Hey ${customerFirstName}! Just a reminder that your order from ${bakerName} is ready for pickup tomorrow. Here are your details.`,
+      rows: [
+        { label: 'Baker', value: bakerName },
+        { label: 'Item', value: itemName },
+        { label: 'Pickup date', value: pickupDate },
+        { label: 'Pickup time', value: pickupTime }
+      ],
+      address: pickupAddress,
       ctaText: 'View your order',
       ctaUrl: orderUrl
     }),
-    text: `Hi ${customerFirstName}, your order from ${bakerName} (${quantity ? quantity + ' x ' : ''}${itemName}) is ready for pickup tomorrow, ${pickupDate}${pickupTime ? ', ' + pickupTime : ''}${pickupAddress ? ', at ' + pickupAddress : ''}. View your order: ${orderUrl}`
+    text: `Hey ${customerFirstName}! Your order from ${bakerName} (${itemName}) is ready for pickup tomorrow, ${pickupDate}${pickupTime ? ', ' + pickupTime : ''}${pickupAddress ? ', at ' + pickupAddress : ''}. View your order: ${orderUrl}`
   });
 }
 
-// Morning-of reminder to the customer (warmer tone).
-async function sendCustomerReminderDayOf({ to, customerFirstName, bakerName, itemName, quantity, pickupDate, pickupTime, pickupAddress, orderUrl }) {
-  const highlight = [
-    pickupTime ? detailRow('Pickup time', pickupTime) : detailRow('Pickup', 'today'),
-    pickupAddress ? detailRow('Pickup address', pickupAddress) : '',
-    detailRow('Order', `${quantity ? quantity + ' x ' : ''}${itemName}`),
-    detailRow('Baker', bakerName)
-  ].filter(Boolean).join('');
+// Email 3 — customer, morning of pickup.
+async function sendCustomerReminderDayOf({ to, customerFirstName, bakerName, itemName, pickupTime, pickupAddress, orderUrl }) {
   return send({
     to,
     subject: "Today's the day, your order is ready for pickup",
-    html: brandedEmail({
-      heading: `It's pickup day, ${customerFirstName}`,
-      paragraphs: [`Today is the day. ${escEmail(bakerName)} has your order ready, and we cannot wait for you to see it. Here is where and when to grab it.`],
-      highlightHtml: highlight,
+    html: reminderEmail({
+      celebration: { title: "Today's the day!", subtitle: 'Your order is ready for pickup' },
+      eyebrow: 'Pickup today',
+      headlineHtml: `Something <span style="color:#C2557E;">beautiful</span> is waiting for you.`,
+      bodyText: `Hey ${customerFirstName}! Your order from ${bakerName} is ready. Here's everything you need for a smooth pickup today.`,
+      rows: [
+        { label: 'Baker', value: bakerName },
+        { label: 'Item', value: itemName },
+        { label: 'Pickup time', value: pickupTime }
+      ],
+      address: pickupAddress,
       ctaText: 'View your order',
-      ctaUrl: orderUrl
+      ctaUrl: orderUrl,
+      afterNote: `After your pickup, you'll be able to leave a review for ${bakerName} in the app. Your feedback helps other customers find great bakers.`
     }),
-    text: `Today's the day, ${customerFirstName}. Your order from ${bakerName} (${quantity ? quantity + ' x ' : ''}${itemName}) is ready${pickupTime ? ' at ' + pickupTime : ''}${pickupAddress ? ', ' + pickupAddress : ''}. View your order: ${orderUrl}`
+    text: `Today's the day, ${customerFirstName}! Your order from ${bakerName} (${itemName}) is ready${pickupTime ? ' at ' + pickupTime : ''}${pickupAddress ? ', ' + pickupAddress : ''}. View your order: ${orderUrl}`
   });
 }
 
