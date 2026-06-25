@@ -56,11 +56,13 @@ class AirtableClient {
     return res.json();
   }
 
-  async update(table, recordId, fields) {
+  async update(table, recordId, fields, { typecast } = {}) {
+    const body = { fields };
+    if (typecast) body.typecast = true;
     const res = await fetch(this.url(table, recordId), {
       method: 'PATCH',
       headers: this.headers(),
-      body: JSON.stringify({ fields })
+      body: JSON.stringify(body)
     });
     if (!res.ok) throw new AirtableError(res.status, await res.text());
     return res.json();

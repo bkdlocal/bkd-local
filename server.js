@@ -511,6 +511,14 @@ app.get('/api/baker', requireAuth, async (req, res, next) => {
   try { res.json(await currentBaker(req)); } catch (e) { next(e); }
 });
 
+// Normalize a multiple-select value (string "a, b" or array) to an array of
+// trimmed, non-empty strings, which is what Airtable multipleSelects expects.
+function toMultiSelect(v) {
+  if (Array.isArray(v)) return v.map(s => String(s).trim()).filter(Boolean);
+  if (typeof v === 'string') return v.split(',').map(s => s.trim()).filter(Boolean);
+  return [];
+}
+
 app.patch('/api/baker', requireAuth, async (req, res, next) => {
   try {
     const baker = await currentBaker(req);
@@ -525,21 +533,25 @@ app.patch('/api/baker', requireAuth, async (req, res, next) => {
       businessName: 'Business Name',
       phone: 'Phone',
       city: 'City',
-      pickupLocation: 'Pickup Location',
+      pickupLocation: 'Exact Pick-up Address',
       bio: 'Bio',
-      productTypes: 'Product Types',
-      specialtyTags: 'Specialty Tags',
       profileStatus: 'Profile Status'
     };
     for (const [key, col] of Object.entries(basicMap)) {
       if (patch[key] !== undefined) fields[col] = patch[key] === '' ? null : patch[key];
     }
+    // Product Types / Specialty Tags are multiple-select fields: write arrays of
+    // strings (the edit form sends comma-separated text), never a raw string.
+    if (patch.productTypes !== undefined) fields['Product Types'] = toMultiSelect(patch.productTypes);
+    if (patch.specialtyTags !== undefined) fields['Specialty Tags'] = toMultiSelect(patch.specialtyTags);
     if (patch.faq && typeof patch.faq === 'object') {
       for (const [key, col] of Object.entries(FAQ_FIELDS)) {
         if (patch.faq[key] !== undefined) fields[col] = patch.faq[key] === '' ? null : patch.faq[key];
       }
     }
-    const updated = await airtable.update('Baker Profiles', baker.id, fields);
+    // typecast lets Airtable match select options case/space-insensitively
+    // (and avoids a hard failure if a baker enters a near-match).
+    const updated = await airtable.update('Baker Profiles', baker.id, fields, { typecast: true });
     await safeRecomputeProfileStatus(baker);
     res.json({ ok: true, baker: bakerFromRecord(updated) });
   } catch (e) { next(e); }
