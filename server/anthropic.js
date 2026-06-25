@@ -187,7 +187,11 @@ async function answerFaq({ audience, question, apiKey, model }) {
   const q = String(question || '').trim().slice(0, 600);
   if (!q) return { answer: '', error: 'empty_question' };
   const system = audience === 'baker' ? BAKER_FAQ_SYSTEM : CUSTOMER_FAQ_SYSTEM;
-  const withSignoff = (text) => (text && text.includes('hello@bkdlocal.com')) ? text : `${text}\n\n${FAQ_SIGNOFF}`;
+  // Guarantee every answer ends with the exact sign-off line.
+  const withSignoff = (text) => {
+    const t = String(text || '').trim();
+    return t.endsWith(FAQ_SIGNOFF) ? t : `${t}\n\n${FAQ_SIGNOFF}`;
+  };
   if (!apiKey) {
     return { answer: `Thanks for your question. Our assistant is being set up right now. ${FAQ_SIGNOFF}`, source: 'fallback' };
   }
