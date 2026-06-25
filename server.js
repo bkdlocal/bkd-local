@@ -519,6 +519,30 @@ function toMultiSelect(v) {
   return [];
 }
 
+// A junk option is a concatenation of boolean words (e.g. "TrueFalseFalse..."
+// or "OtherFalseFalse...True") created by a bad checkbox->string write.
+function isOptionJunk(s) {
+  return /(?:true|false){2,}/i.test(String(s));
+}
+
+// Normalize a multi-select write to ONLY real option names. Each submitted
+// value is matched (case-insensitively) against the field's actual Airtable
+// options (junk options excluded) and written with the canonical spelling;
+// anything that doesn't match a real option (junk or typo) is dropped. This
+// guarantees we never write a value that isn't a known valid option, so no
+// typecast/auto-create is needed.
+function cleanMultiSelect(value, validOptions) {
+  const items = toMultiSelect(value);
+  if (!Array.isArray(validOptions)) return items.filter(s => !isOptionJunk(s));
+  const byLower = new Map(validOptions.filter(o => !isOptionJunk(o)).map(o => [o.toLowerCase(), o]));
+  const out = [];
+  for (const s of items) {
+    const match = byLower.get(s.toLowerCase());
+    if (match && !out.includes(match)) out.push(match);
+  }
+  return out;
+}
+
 app.patch('/api/baker', requireAuth, async (req, res, next) => {
   try {
     const baker = await currentBaker(req);
@@ -540,18 +564,24 @@ app.patch('/api/baker', requireAuth, async (req, res, next) => {
     for (const [key, col] of Object.entries(basicMap)) {
       if (patch[key] !== undefined) fields[col] = patch[key] === '' ? null : patch[key];
     }
-    // Product Types / Specialty Tags are multiple-select fields: write arrays of
-    // strings (the edit form sends comma-separated text), never a raw string.
-    if (patch.productTypes !== undefined) fields['Product Types'] = toMultiSelect(patch.productTypes);
-    if (patch.specialtyTags !== undefined) fields['Specialty Tags'] = toMultiSelect(patch.specialtyTags);
+    // Product Types / Specialty Tags are multiple-selects: write an array of
+    // ONLY real, known option names (validated against the live Airtable
+    // options, junk filtered out) so a boolean/garbage value can never be
+    // written or auto-created.
+    if (patch.productTypes !== undefined) {
+      fields['Product Types'] = cleanMultiSelect(patch.productTypes, await airtable.selectOptions('Baker Profiles', 'Product Types'));
+    }
+    if (patch.specialtyTags !== undefined) {
+      fields['Specialty Tags'] = cleanMultiSelect(patch.specialtyTags, await airtable.selectOptions('Baker Profiles', 'Specialty Tags'));
+    }
     if (patch.faq && typeof patch.faq === 'object') {
       for (const [key, col] of Object.entries(FAQ_FIELDS)) {
         if (patch.faq[key] !== undefined) fields[col] = patch.faq[key] === '' ? null : patch.faq[key];
       }
     }
-    // typecast lets Airtable match select options case/space-insensitively
-    // (and avoids a hard failure if a baker enters a near-match).
-    const updated = await airtable.update('Baker Profiles', baker.id, fields, { typecast: true });
+    // No typecast: we only ever send existing option names, so Airtable can
+    // never auto-create a junk option.
+    const updated = await airtable.update('Baker Profiles', baker.id, fields);
     await safeRecomputeProfileStatus(baker);
     res.json({ ok: true, baker: bakerFromRecord(updated) });
   } catch (e) { next(e); }

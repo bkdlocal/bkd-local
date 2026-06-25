@@ -98,13 +98,31 @@ class AirtableClient {
       if (!res.ok) return this._schemaAt ? (this._schemaAt[table] || null) : null;
       const json = await res.json();
       const map = {};
-      for (const t of json.tables || []) map[t.name] = new Set((t.fields || []).map(f => f.name));
+      const choices = {};
+      for (const t of json.tables || []) {
+        map[t.name] = new Set((t.fields || []).map(f => f.name));
+        choices[t.name] = {};
+        for (const f of t.fields || []) {
+          if (f.options && Array.isArray(f.options.choices)) {
+            choices[t.name][f.name] = f.options.choices.map(c => c.name);
+          }
+        }
+      }
       this._schemaAt = map;
+      this._schemaChoices = choices;
       this._schemaTime = Date.now();
       return map[table] || null;
     } catch (_) {
       return this._schemaAt ? (this._schemaAt[table] || null) : null;
     }
+  }
+
+  // The select-option names for a single-/multi-select field (or null if the
+  // schema can't be read). Used to validate writes against real options.
+  async selectOptions(table, field) {
+    await this.tableFieldNames(table);
+    const t = this._schemaChoices && this._schemaChoices[table];
+    return (t && t[field]) ? t[field] : null;
   }
 
   // True/false/null(unknown) for whether a single field exists on a table.
