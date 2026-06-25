@@ -538,6 +538,7 @@ app.patch('/api/baker', requireAuth, async (req, res, next) => {
       }
     }
     const updated = await airtable.update('Baker Profiles', baker.id, fields);
+    await safeRecomputeProfileStatus(baker);
     res.json({ ok: true, baker: bakerFromRecord(updated) });
   } catch (e) { next(e); }
 });
@@ -628,6 +629,60 @@ function countFilled(orders, date) {
   ).length;
 }
 
+// ── Profile Status auto-complete ─────────────────────────────────────────────
+// A baker becomes "Live" once their profile is order-ready: Bio + City filled,
+// at least one sellable Menu Item (Cover Photo URL + Price), and at least one
+// Availability slot. Otherwise "Incomplete". Re-run after any save to Baker
+// Profiles, Menu Items, or Availability. A manually "Paused" baker is left
+// untouched. Best-effort: wrapped so it never blocks or fails the save.
+//
+// Availability is matched on Baker Email (not the Baker Profiles link): slots
+// created in-app set Baker Email but leave the link field empty, so email is
+// the reliable join. Menu Items has no link field, so it is matched on email too.
+async function recomputeProfileStatus(baker) {
+  if (MODE === 'mock' || !airtable || !baker || !baker.id || !baker.email) return null;
+
+  const profile = await airtable.findById('Baker Profiles', baker.id);
+  if (!profile) return null;
+  const f = profile.fields;
+  const current = f['Profile Status'];
+
+  if (current === 'Paused') return current; // never override a deliberate pause
+
+  const bioOk  = String(f['Bio'] || '').trim() !== '';
+  const cityOk = String(f['City'] || '').trim() !== ''; // City may carry a trailing space
+
+  const menuItems = await airtable.list('Menu Items', {
+    filterByFormula: `LOWER(TRIM({Baker Email})) = '${escapeFormula(baker.email)}'`
+  });
+  const hasSellableItem = menuItems.some((m) => {
+    const cover = String(m.fields['Cover Photo URL'] || '').trim();
+    const price = m.fields['Price'];
+    const priceOk = price !== undefined && price !== null && String(price).trim() !== '';
+    return cover !== '' && priceOk;
+  });
+
+  const slots = await airtable.list('Availability', {
+    filterByFormula: `LOWER(TRIM({Baker Email})) = '${escapeFormula(baker.email)}'`
+  });
+  const hasAvailability = slots.length > 0;
+
+  const next = (bioOk && cityOk && hasSellableItem && hasAvailability) ? 'Live' : 'Incomplete';
+  if (next !== current) {
+    await airtable.update('Baker Profiles', baker.id, { 'Profile Status': next });
+  }
+  return next;
+}
+
+async function safeRecomputeProfileStatus(baker) {
+  try {
+    return await recomputeProfileStatus(baker);
+  } catch (e) {
+    console.error('[profile-status] recompute failed:', e.message);
+    return null;
+  }
+}
+
 app.get('/api/availability', requireAuth, async (req, res, next) => {
   try {
     const baker = await currentBaker(req);
@@ -675,6 +730,7 @@ app.post('/api/availability/slots', requireAuth, async (req, res, next) => {
       'Available Date': date,
       'Slots Available': slotsAvailable
     });
+    await safeRecomputeProfileStatus(baker);
     res.json({ ok: true, slot: slotFromRecord(rec) });
   } catch (e) { next(e); }
 });
@@ -698,6 +754,7 @@ app.patch('/api/availability/slots/:id', requireAuth, async (req, res, next) => 
     const rec = await airtable.update('Availability', req.params.id, {
       'Slots Available': slotsAvailable
     });
+    await safeRecomputeProfileStatus(baker);
     res.json({ ok: true, slot: slotFromRecord(rec) });
   } catch (e) { next(e); }
 });
@@ -845,6 +902,7 @@ app.post('/api/menu', requireAuth, async (req, res, next) => {
       }) });
     }
     const rec = await airtable.create('Menu Items', menuItemAirtableFields(baker, b, { includeBaker: true }));
+    await safeRecomputeProfileStatus(baker);
     res.json({ ok: true, item: menuItemFromRecord(rec) });
   } catch (e) { next(e); }
 });
@@ -865,6 +923,7 @@ app.patch('/api/menu/:id', requireAuth, async (req, res, next) => {
       return res.status(404).json({ error: 'Menu item not found.' });
     }
     const updated = await airtable.update('Menu Items', req.params.id, menuItemAirtableFields(baker, body));
+    await safeRecomputeProfileStatus(baker);
     res.json({ ok: true, item: menuItemFromRecord(updated) });
   } catch (e) { next(e); }
 });
@@ -1216,6 +1275,7 @@ app.delete('/api/availability/slots/:id', requireAuth, async (req, res, next) =>
       return res.status(404).json({ error: 'Slot not found' });
     }
     await airtable.delete('Availability', req.params.id);
+    await safeRecomputeProfileStatus(baker);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
