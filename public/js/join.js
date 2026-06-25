@@ -43,6 +43,29 @@
   function val(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
   function showError(msg) { err.textContent = msg; err.hidden = false; btn.disabled = false; }
 
+  // Light confetti burst in brand colors, ~2.5s then self-cleans. Skipped when
+  // the visitor prefers reduced motion.
+  function launchConfetti() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const colors = ['#C2557E', '#F2C4D8', '#D4C8E0'];
+    for (let i = 0; i < 80; i++) {
+      const p = document.createElement('div');
+      p.className = 'confetti-piece';
+      const size = 6 + Math.random() * 8;
+      const dur = 1.8 + Math.random() * 1.0;
+      const delay = Math.random() * 0.4;
+      p.style.left = (Math.random() * 100) + 'vw';
+      p.style.width = p.style.height = size + 'px';
+      p.style.background = colors[i % colors.length];
+      p.style.setProperty('--dx', (Math.random() * 240 - 120) + 'px');
+      p.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
+      p.style.animationDuration = dur + 's';
+      p.style.animationDelay = delay + 's';
+      document.body.appendChild(p);
+      setTimeout(function () { if (p.parentNode) p.parentNode.removeChild(p); }, (dur + delay) * 1000 + 600);
+    }
+  }
+
   form.addEventListener('submit', async function (e) {
     e.preventDefault();
     err.hidden = true;
@@ -57,6 +80,7 @@
       email: val('email'),
       phone: val('phone'),
       city: val('city'),
+      state: val('state'),
       zip: val('zip')
     };
 
@@ -74,6 +98,7 @@
       if (!r.ok) throw new Error(j.error || 'Could not finish signup.');
       card.hidden = true;
       done.hidden = false;
+      launchConfetti();
       if (j.emailWarning) {
         doneNote.textContent = 'We had trouble sending the email. Use "reset password" on the login page to get your link.';
         doneNote.hidden = false;

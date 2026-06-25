@@ -1,5 +1,26 @@
 const { esc, layout } = require('./public-site');
 
+// All 50 states + DC, [code, name]. Stored combined as "City, ST" in Airtable.
+const US_STATES = [
+  ['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],
+  ['CO','Colorado'],['CT','Connecticut'],['DE','Delaware'],['DC','District of Columbia'],
+  ['FL','Florida'],['GA','Georgia'],['HI','Hawaii'],['ID','Idaho'],['IL','Illinois'],
+  ['IN','Indiana'],['IA','Iowa'],['KS','Kansas'],['KY','Kentucky'],['LA','Louisiana'],
+  ['ME','Maine'],['MD','Maryland'],['MA','Massachusetts'],['MI','Michigan'],['MN','Minnesota'],
+  ['MS','Mississippi'],['MO','Missouri'],['MT','Montana'],['NE','Nebraska'],['NV','Nevada'],
+  ['NH','New Hampshire'],['NJ','New Jersey'],['NM','New Mexico'],['NY','New York'],
+  ['NC','North Carolina'],['ND','North Dakota'],['OH','Ohio'],['OK','Oklahoma'],['OR','Oregon'],
+  ['PA','Pennsylvania'],['RI','Rhode Island'],['SC','South Carolina'],['SD','South Dakota'],
+  ['TN','Tennessee'],['TX','Texas'],['UT','Utah'],['VT','Vermont'],['VA','Virginia'],
+  ['WA','Washington'],['WV','West Virginia'],['WI','Wisconsin'],['WY','Wyoming']
+];
+
+function stateOptions(selected) {
+  return US_STATES.map(([code, name]) =>
+    `<option value="${code}"${code === selected ? ' selected' : ''}>${esc(name)}</option>`
+  ).join('');
+}
+
 // Join-specific CSS. Uses the live brand tokens from public.css (--berry
 // #C2557E, --pink, --card, --ink, --mauve, --line, --radius, --shadow) so it
 // stays consistent with the rest of the app rather than re-declaring hex values.
@@ -31,7 +52,14 @@ function joinStyles() {
   .join-tier-pill { display: inline-block; background: var(--pink); color: var(--berry-deep);
     font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 999px; margin-bottom: 12px; }
   .join-tier-pill.is-charter { background: var(--berry); color: #fff; }
-  .field-hint { display: block; font-size: 12px; color: var(--mauve); margin-top: 6px; }
+  .confetti-piece { position: fixed; top: -14px; border-radius: 2px; z-index: 60;
+    pointer-events: none; opacity: 0; will-change: transform, opacity;
+    animation: confetti-fall linear forwards; }
+  @keyframes confetti-fall {
+    0% { transform: translate3d(0, -10px, 0) rotate(0deg); opacity: 1; }
+    100% { transform: translate3d(var(--dx, 0), 88vh, 0) rotate(var(--rot, 360deg)); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) { .confetti-piece { display: none; } }
   @media (max-width: 600px) { .join-cards { grid-template-columns: 1fr; } }
   </style>`;
 }
@@ -61,9 +89,13 @@ function renderJoin({ stripeReady, error }) {
         <div class="join-price">$97 <span>one-time</span></div>
         <div class="join-subprice">+ $19/month</div>
         <ul class="join-feats">
-          <li>5% lifetime fee rate</li>
-          <li>Founding Baker badge</li>
-          <li>Priority placement</li>
+          <li>Lifetime 5% fee rate (Standard is 8%)</li>
+          <li>Founding Baker badge on your profile</li>
+          <li>Priority placement in the directory</li>
+          <li>Quarterly strategy calls with Raina</li>
+          <li>Founding Council membership</li>
+          <li>First-customer guarantee</li>
+          <li>Referral rewards</li>
         </ul>
         ${charterCta}
       </section>
@@ -115,17 +147,20 @@ function renderFinish({ tier, sessionId, email }) {
           <div class="field">
             <label for="city">City</label>
             <input id="city" type="text" placeholder="Jackson" autocomplete="address-level2">
-            <span class="field-hint">We'll add ", TN" for you.</span>
           </div>
-          <div class="field"><label for="zip">Zip code</label><input id="zip" type="text" inputmode="numeric" autocomplete="postal-code"></div>
+          <div class="field">
+            <label for="state">State</label>
+            <select id="state" autocomplete="address-level1">${stateOptions('TN')}</select>
+          </div>
         </div>
+        <div class="field"><label for="zip">Zip code</label><input id="zip" type="text" inputmode="numeric" autocomplete="postal-code"></div>
         <button type="submit" class="btn btn-primary btn-block" id="joinSubmit">Create my account</button>
         <p class="form-error" id="joinError" hidden></p>
       </form>
     </div>
     <div class="auth-card join-done" id="joinDone" hidden>
-      <h1>Check your email</h1>
-      <p class="muted">Your baker account is created. We just sent a link to set your password and get into your dashboard. It can take a minute to arrive; check spam if you don't see it.</p>
+      <h1>Welcome to Bkd Local!</h1>
+      <p class="muted">You're officially part of something special. We just sent you a link to set your password and get into your dashboard. Check your email to get started, and get ready to make more money with a whole lot less hustle.</p>
       <p class="form-note" id="joinDoneNote" hidden></p>
       <a class="btn btn-outline btn-block" href="/login">Go to login</a>
     </div>

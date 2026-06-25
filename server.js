@@ -442,13 +442,17 @@ app.post('/api/join/finish', async (req, res, next) => {
     const bakeryName = String(b.bakeryName || '').trim();
     const email = normEmail(b.email);
     const phone = String(b.phone || '').trim();
-    let city = String(b.city || '').trim();
+    const city = String(b.city || '').trim();
+    const state = String(b.state || '').trim().toUpperCase();
     const zip = String(b.zip || '').trim();
 
     if (!firstName || !lastName) return res.status(400).json({ error: 'Please enter your first and last name.' });
     if (!bakeryName) return res.status(400).json({ error: 'Please enter your bakery name.' });
     if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
-    if (city && !/,\s*TN$/i.test(city)) city = `${city}, TN`;
+
+    // City field stores "City, ST" combined (e.g. "Jackson, TN"). State comes
+    // from the dropdown as a 2-letter code; city alone is kept if state is absent.
+    const cityCombined = city && /^[A-Z]{2}$/.test(state) ? `${city}, ${state}` : city;
 
     // One Baker Profile per email.
     const existing = await findBakerAuthRecord(email);
@@ -463,7 +467,7 @@ app.post('/api/join/finish', async (req, res, next) => {
       'Profile Status': 'Incomplete'
     };
     if (phone) fields['Phone'] = phone;
-    if (city) fields['City'] = city;
+    if (cityCombined) fields['City'] = cityCombined;
     if (zip) fields['Zip Code'] = zip;
     if (tier === 'charter') {
       fields['Tier'] = 'Charter';

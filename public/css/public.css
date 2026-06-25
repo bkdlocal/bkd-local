@@ -139,6 +139,8 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
   font-family: inherit; font-size: 15px; color: var(--ink);
   border: 1px solid var(--mauve-soft); border-radius: 999px;
   padding: 12px 18px; background: #fff; width: 100%;
+  box-sizing: border-box; max-width: 100%; min-width: 0;
+  -webkit-appearance: none; appearance: none;
 }
 .df-range input[type="date"] { flex: 1; min-width: 0; }
 .search-block input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; }

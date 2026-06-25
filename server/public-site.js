@@ -167,6 +167,9 @@ function layout({ title, description, body, viewer }) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/css/public.css">
+<link rel="apple-touch-icon" href="/icon-180.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+<link rel="manifest" href="/manifest.json">
 </head>
 <body>
 ${header(viewer)}
