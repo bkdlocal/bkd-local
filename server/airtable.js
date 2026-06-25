@@ -229,8 +229,15 @@ function menuItemFromRecord(rec) {
     coverPhoto: photos[0] || null,
     recipeCost: (cost == null || cost === '') ? null : (typeof cost === 'number' ? cost : parseFloat(cost) || null),
     category: f['Category'] || 'Other',
-    available: f['Available'] !== false
+    available: f['Available'] !== false,
+    minimumQuantity: minOrNull(f['Minimum Quantity'])
   };
+}
+
+// Minimum Quantity is a number field; treat blank/0/negative as "no minimum".
+function minOrNull(v) {
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 function orderFromRecord(rec) {

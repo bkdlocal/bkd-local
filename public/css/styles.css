@@ -426,7 +426,20 @@ body {
 }
 
 /* ── Login ── */
-.login-screen { background: var(--blush); }
+/* Poppins (400/500 only) is scoped to the login screen so it matches the
+   warmth of the customer-facing site; the rest of the baker app stays on Inter. */
+.login-screen {
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(242, 196, 216, 0.45) 0%, rgba(242, 196, 216, 0) 60%),
+    var(--blush);
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+.login-screen .login-title,
+.login-screen .login-sub,
+.login-screen .login-input,
+.login-screen .login-submit,
+.login-screen .login-forgot,
+.login-screen .login-footer { font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif; }
 .login-body {
   flex: 1;
   display: flex;
@@ -452,19 +465,20 @@ body {
 }
 .login-card {
   background: white;
-  border-radius: 20px;
-  padding: 28px 24px;
+  border-radius: 24px;
+  padding: 34px 26px 30px;
   border: 1px solid var(--card-border);
-  box-shadow: 0 1px 3px rgba(44, 26, 36, 0.04);
+  box-shadow: 0 18px 40px -16px rgba(194, 85, 126, 0.28), 0 2px 6px rgba(44, 26, 36, 0.04);
 }
-.login-hero { font-size: 40px; text-align: center; margin-bottom: 14px; }
-.login-hero img { height: 44px; width: auto; vertical-align: middle; }
+.login-hero { text-align: center; margin-bottom: 18px; }
+.login-hero img { height: 56px; width: auto; vertical-align: middle; }
 .login-title {
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 500;
   color: var(--plum);
   text-align: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  letter-spacing: -0.01em;
 }
 .login-sub {
   font-size: 13px;
@@ -2812,4 +2826,46 @@ body {
   margin-left: 4px;
 }
 
+/* ── Share my profile (dashboard) ── */
+.share-profile-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 8px 0 6px;
+  padding: 12px;
+  background: transparent;
+  border: 1.5px solid var(--berry);
+  color: var(--berry);
+  border-radius: 24px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.share-profile-btn:active { background: var(--blush); }
+.share-profile-icon { font-size: 15px; line-height: 1; }
+
+.share-toast {
+  position: absolute;
+  left: 50%;
+  bottom: 88px;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--plum);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(44, 26, 36, 0.3);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 100;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: 88%;
+  text-align: center;
+}
+.share-toast--visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 

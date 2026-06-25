@@ -11,6 +11,22 @@ function esc(s) {
     .replace(/'/g, '&#39;');
 }
 
+// "Minimum: 2 dozen" using the item's Sold Per unit. Returns '' when there is
+// no minimum (blank / 0). Shared by the profile menu and the order flow, and
+// mirrored client-side in order.js.
+function minimumLabel(min, soldPer) {
+  const n = Number(min);
+  if (!Number.isFinite(n) || n <= 0) return '';
+  const sp = String(soldPer || '').toLowerCase();
+  let unit;
+  if (sp === 'dozen') unit = 'dozen';
+  else if (sp === 'half dozen' || sp === 'halfdozen') unit = 'half dozen';
+  else if (sp === 'individual') unit = n === 1 ? 'item' : 'items';
+  else if (sp) unit = sp;
+  else unit = n === 1 ? 'order' : 'orders';
+  return `Minimum: ${n} ${unit}`;
+}
+
 // Format a 'YYYY-MM-DD' string without constructing a Date (no timezone shift).
 function formatDateLabel(iso) {
   if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso || '';
@@ -176,6 +192,7 @@ ${header(viewer)}
 <main>${body}</main>
 ${footer()}
 <script src="/js/nav-badge.js"></script>
+<script src="/js/a2hs-banner.js"></script>
 </body>
 </html>`;
 }
@@ -274,7 +291,10 @@ function menuSection(menu, bakerId) {
         ${m.description ? `<div class="menu-sub">${esc(m.description)}</div>` : ''}
       </div>
       <div class="menu-right">
-        ${m.price != null ? `<div class="menu-price">$${esc(Number(m.price).toFixed(0))}</div>` : ''}
+        <div class="menu-price-col">
+          ${m.price != null ? `<div class="menu-price">$${esc(Number(m.price).toFixed(0))}</div>` : ''}
+          ${minimumLabel(m.minimumQuantity, m.soldPer) ? `<div class="menu-min">${esc(minimumLabel(m.minimumQuantity, m.soldPer))}</div>` : ''}
+        </div>
         ${m.id ? `<a class="menu-request" href="/order/new?baker=${esc(bakerId)}&amp;item=${esc(m.id)}">Request</a>` : ''}
       </div>
     </div>`).join('');
@@ -373,4 +393,4 @@ function renderNotFound() {
   });
 }
 
-module.exports = { renderHome, renderDirectory, renderProfile, renderNotFound, esc, layout };
+module.exports = { renderHome, renderDirectory, renderProfile, renderNotFound, esc, layout, minimumLabel };

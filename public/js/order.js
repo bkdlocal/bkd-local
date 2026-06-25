@@ -2,7 +2,10 @@
   const data = JSON.parse(document.getElementById('order-data').textContent);
   const item = data.item;
   const serviceFee = Number(data.serviceFee) || 0;
-  const state = { quantity: 1, pickupDate: null, addons: {}, notes: '' };
+  // Minimum order quantity (1 when the baker set no minimum). The stepper starts
+  // here and can't go below it.
+  const minQty = Number(item.minimumQuantity) > 0 ? Math.floor(item.minimumQuantity) : 1;
+  const state = { quantity: minQty, pickupDate: null, addons: {}, notes: '' };
 
   const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   function fmtDate(iso) { const p = iso.split('-').map(Number); return MONTHS[p[1] - 1] + ' ' + p[2] + ', ' + p[0]; }
@@ -27,7 +30,7 @@
     });
   }
   function setAddonQty(i) { const el = document.querySelector('.addon-qty[data-i="' + i + '"]'); if (el) el.textContent = state.addons[i] || 0; }
-  function updateNext1() { document.getElementById('next1').disabled = !(state.quantity >= 1 && state.pickupDate); }
+  function updateNext1() { document.getElementById('next1').disabled = !(state.quantity >= minQty && state.pickupDate); }
 
   function showStep(n) {
     document.querySelectorAll('.ostep').forEach(s => s.classList.toggle('active', s.dataset.step === String(n)));
@@ -56,7 +59,7 @@
     const t = e.target.closest('[data-act]'); if (!t) return;
     const act = t.dataset.act;
     if (act === 'qty-inc') { state.quantity++; document.getElementById('qtyVal').textContent = state.quantity; clampPerCookie(); updateNext1(); renderTotals(); }
-    else if (act === 'qty-dec') { if (state.quantity > 1) { state.quantity--; document.getElementById('qtyVal').textContent = state.quantity; clampPerCookie(); updateNext1(); renderTotals(); } }
+    else if (act === 'qty-dec') { if (state.quantity > minQty) { state.quantity--; document.getElementById('qtyVal').textContent = state.quantity; clampPerCookie(); updateNext1(); renderTotals(); } }
     else if (act === 'pick-date') { state.pickupDate = t.dataset.date; document.querySelectorAll('.date-pill').forEach(p => p.classList.toggle('selected', p === t)); updateNext1(); }
     else if (act === 'addon-inc') { const i = t.dataset.i; state.addons[i] = Math.min((state.addons[i] || 0) + 1, state.quantity); setAddonQty(i); renderTotals(); }
     else if (act === 'addon-dec') { const i = t.dataset.i; state.addons[i] = Math.max((state.addons[i] || 0) - 1, 0); setAddonQty(i); renderTotals(); }

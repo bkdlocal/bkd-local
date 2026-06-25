@@ -136,12 +136,12 @@ function renderFinish({ tier, sessionId, email }) {
       </div>
       <form id="joinForm" data-tier="${esc(tier)}" data-session="${esc(sessionId || '')}">
         <div class="two-col">
-          <div class="field"><label for="firstName">First name</label><input id="firstName" type="text" autocomplete="given-name" required></div>
-          <div class="field"><label for="lastName">Last name</label><input id="lastName" type="text" autocomplete="family-name" required></div>
+          <div class="field"><label for="firstName">First name</label><input id="firstName" type="text" placeholder="Maggie" autocomplete="given-name" required></div>
+          <div class="field"><label for="lastName">Last name</label><input id="lastName" type="text" placeholder="Carter" autocomplete="family-name" required></div>
         </div>
-        <div class="field"><label for="bakeryName">Bakery name</label><input id="bakeryName" type="text" autocomplete="organization" required></div>
-        <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" value="${esc(email || '')}" required></div>
-        <div class="field"><label for="phone">Phone</label><input id="phone" type="tel" autocomplete="tel"></div>
+        <div class="field"><label for="bakeryName">Bakery name</label><input id="bakeryName" type="text" placeholder="Sweet Magnolia Bakery" autocomplete="organization" required></div>
+        <div class="field"><label for="email">Email</label><input id="email" type="email" placeholder="hello@sweetmagnoliabakery.com" autocomplete="email" value="${esc(email || '')}" required></div>
+        <div class="field"><label for="phone">Phone</label><input id="phone" type="tel" placeholder="(731) 555-0148" autocomplete="tel"></div>
         <div class="two-col">
           <div class="field">
             <label for="city">City</label>
@@ -152,7 +152,7 @@ function renderFinish({ tier, sessionId, email }) {
             <select id="state" autocomplete="address-level1">${stateOptions('TN')}</select>
           </div>
         </div>
-        <div class="field"><label for="zip">Zip code</label><input id="zip" type="text" inputmode="numeric" autocomplete="postal-code"></div>
+        <div class="field"><label for="zip">Zip code</label><input id="zip" type="text" placeholder="38301" inputmode="numeric" autocomplete="postal-code"></div>
         <button type="submit" class="btn btn-primary btn-block" id="joinSubmit">Create my account</button>
         <p class="form-error" id="joinError" hidden></p>
       </form>

@@ -8,6 +8,9 @@ async function renderHome() {
   ]);
 
   const net = computeNet(earnings.gross, baker.feeRate);
+  // Canonical public profile link bakers paste into their Instagram bio or send
+  // to customers — always the production URL, regardless of where this runs.
+  const shareUrl = 'https://bkd-local-production.up.railway.app/bakers/' + baker.id;
 
   return `
     <div class="screen">
@@ -54,6 +57,10 @@ async function renderHome() {
             </div>
           </div>
         </div>
+
+        <button type="button" class="share-profile-btn" data-action="home:shareProfile" data-value="${shareUrl}">
+          <span class="share-profile-icon">🔗</span> Share my profile
+        </button>
 
         <div class="section-header" style="margin-top:4px;">
           <div class="section-title-sm">Your Bakery</div>

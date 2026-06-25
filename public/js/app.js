@@ -64,8 +64,50 @@ const Router = {
   }
 };
 
+function showShareToast(msg) {
+  const existing = document.querySelector('.share-toast');
+  if (existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'share-toast';
+  toast.textContent = msg;
+  (document.querySelector('.app-frame') || document.body).appendChild(toast);
+  // Force reflow so the entrance transition runs.
+  void toast.offsetWidth;
+  toast.classList.add('share-toast--visible');
+  setTimeout(() => {
+    toast.classList.remove('share-toast--visible');
+    setTimeout(() => toast.remove(), 250);
+  }, 2200);
+}
+
+async function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
+}
+
 const Actions = {
   'order:open': ({ id }) => Router.navigate('orderDetail', { orderId: id }),
+
+  'home:shareProfile': async ({ value }) => {
+    const url = value || '';
+    if (!url) return;
+    try {
+      await copyToClipboard(url);
+      showShareToast('Link copied — share it anywhere.');
+    } catch (e) {
+      showShareToast('Could not copy. Your link: ' + url);
+    }
+  },
 
   'order:accept': async ({ id }) => {
     try {
@@ -199,6 +241,7 @@ const Actions = {
       typeFields: s.typeFields || {},
       batchSize: s.batchSize ?? null,
       batchUnit: s.batchUnit || s.soldBy || null,
+      minimumQuantity: s.minimumQuantity ?? null,
       photos: Array.isArray(s.photos) ? s.photos.filter(Boolean) : [],
       available: true
     };
@@ -617,14 +660,29 @@ const Actions = {
     }
   },
 
-  'auth:forgot': async () => {
-    const input = document.querySelector('.login-form input[name="email"]');
-    const email = input ? input.value.trim() : '';
-    if (!email) { alert('Enter your baker email first, then tap set or reset password.'); return; }
+  'auth:forgotSubmit': async ({ email, form }) => {
+    const card = form.closest('.login-card');
+    const errorEl = card.querySelector('.login-error');
+    const submitBtn = form.querySelector('.login-submit');
+    const value = (email || '').trim();
+    errorEl.hidden = true;
+    if (!value) {
+      errorEl.textContent = 'Please enter your email.';
+      errorEl.hidden = false;
+      return;
+    }
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending…';
     try {
-      await Api.forgotPassword(email);
-      alert('If that email has a baker account, we sent a set-password link.');
-    } catch (e) { alert(e.message); }
+      await Api.forgotPassword(value);
+      document.getElementById('forgotCard').hidden = true;
+      document.getElementById('forgotDone').hidden = false;
+    } catch (e) {
+      errorEl.textContent = e.message;
+      errorEl.hidden = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Send reset link';
+    }
   },
 
   'auth:logout': async () => {
@@ -691,6 +749,7 @@ async function renderPlaceholder(state, screenId) {
 
 const SCREENS = {
   login: renderLogin,
+  forgotPassword: renderForgotPassword,
   home: renderHome,
   orders: renderOrders,
   orderDetail: renderOrderDetail,

@@ -74,8 +74,10 @@ function publicMenuItemFromRecord(rec) {
     coverPhoto: f['Cover Photo URL'] || null,
     photos,
     emoji: null,
-    // Live Menu Items has no sold-per or add-ons columns yet (graceful degradation).
-    soldPer: null,
+    // Sold Per is a single-select ("Dozen" / "Half dozen" / "Individual"); surface
+    // it lowercased as the unit word. Add-ons aren't on live Menu Items yet.
+    soldPer: (f['Sold Per'] || '').toLowerCase() || null,
+    minimumQuantity: numOrNull(f['Minimum Quantity']),
     addOns: []
   };
 }
@@ -102,6 +104,7 @@ function publicMenuItemFromMock(m) {
     photos: Array.isArray(m.photos) ? m.photos.filter(Boolean) : [],
     emoji: m.emoji || null,
     soldPer: m.soldBy || null,
+    minimumQuantity: numOrNull(m.minimumQuantity),
     addOns: Array.isArray(m.addOns) ? m.addOns.map(normalizeAddOn) : []
   };
 }

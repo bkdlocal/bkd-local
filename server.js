@@ -863,11 +863,13 @@ function validateMenuPayload(body) {
 }
 
 function menuItemAirtableFields(baker, b, { includeBaker } = {}) {
+  const minQty = parseInt(b.minimumQuantity, 10);
   const fields = {
     'Item Name': String(b.name).trim(),
     'Price': Number(b.price),
     'Product Type': PRODUCT_TYPE_TO_AIRTABLE[b.productType],
     'Sold Per': SOLD_PER_TO_AIRTABLE[b.soldBy],
+    'Minimum Quantity': Number.isFinite(minQty) && minQty > 0 ? minQty : null,
     'Available': b.available !== false,
     ...menuPhotoFieldsFor(b.photos)
   };
@@ -898,6 +900,7 @@ app.post('/api/menu', requireAuth, async (req, res, next) => {
         typeFields: b.typeFields,
         batchSize: b.batchSize,
         batchUnit: b.batchUnit,
+        minimumQuantity: b.minimumQuantity ?? null,
         photos: Array.isArray(b.photos) ? b.photos.filter(Boolean) : []
       }) });
     }
@@ -1549,7 +1552,10 @@ app.post('/api/orders/request', requireCustomerAuth, async (req, res, next) => {
     const item = await loadMenuItemForBaker(baker, String(b.itemId || ''));
     if (!item) return res.status(404).json({ error: 'Item not found.' });
 
-    const quantity = Math.max(1, parseInt(b.quantity, 10) || 0);
+    // Honor the item's minimum order quantity (1 when unset). The client stepper
+    // already enforces this; clamp here too so the floor can't be bypassed.
+    const minQty = Number(item.minimumQuantity) > 0 ? Math.floor(item.minimumQuantity) : 1;
+    const quantity = Math.max(minQty, parseInt(b.quantity, 10) || 0);
     const pickupDate = String(b.pickupDate || '');
     const openDates = await loadBakerOpenDates(baker);
     if (!openDates.includes(pickupDate)) {

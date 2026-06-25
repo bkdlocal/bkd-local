@@ -263,6 +263,9 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 .menu-name { font-weight: 500; font-size: 15px; }
 .menu-sub { font-size: 13px; color: var(--mauve); margin-top: 2px; }
 .menu-price { color: var(--berry); font-weight: 500; font-size: 15px; white-space: nowrap; }
+.menu-price-col { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.menu-min { color: var(--mauve); font-weight: 400; font-size: 12px; white-space: nowrap; }
+.order-min { color: var(--mauve); font-size: 14px; margin: -14px 0 20px; }
 
 /* Portfolio */
 .portfolio { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }

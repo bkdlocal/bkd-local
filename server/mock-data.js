@@ -450,7 +450,8 @@ function addMenuItem(fields) {
     addOns: Array.isArray(fields.addOns) ? fields.addOns : [],
     typeFields: fields.typeFields && typeof fields.typeFields === 'object' ? fields.typeFields : {},
     batchSize: fields.batchSize != null && fields.batchSize !== '' ? Number(fields.batchSize) : null,
-    batchUnit: fields.batchUnit || null
+    batchUnit: fields.batchUnit || null,
+    minimumQuantity: Number(fields.minimumQuantity) > 0 ? Number(fields.minimumQuantity) : null
   };
   menuItems.push(item);
   return { ...item };
@@ -472,6 +473,7 @@ function updateMenuItem(id, fields) {
   if (fields.typeFields !== undefined) m.typeFields = fields.typeFields && typeof fields.typeFields === 'object' ? fields.typeFields : {};
   if (fields.batchSize !== undefined) m.batchSize = fields.batchSize == null || fields.batchSize === '' ? null : Number(fields.batchSize);
   if (fields.batchUnit !== undefined) m.batchUnit = fields.batchUnit || null;
+  if (fields.minimumQuantity !== undefined) m.minimumQuantity = Number(fields.minimumQuantity) > 0 ? Number(fields.minimumQuantity) : null;
   return { ...m };
 }
 

@@ -76,6 +76,7 @@ async function renderMenuItem(state = {}) {
       state.typeFields = existing.typeFields && typeof existing.typeFields === 'object' ? { ...existing.typeFields } : {};
       state.batchSize = existing.batchSize ?? null;
       state.batchUnit = existing.batchUnit || null;
+      state.minimumQuantity = existing.minimumQuantity ?? null;
       state.photos = Array.isArray(existing.photos) ? [...existing.photos] : [];
     } else {
       state.name = '';
@@ -88,6 +89,7 @@ async function renderMenuItem(state = {}) {
       state.typeFields = {};
       state.batchSize = null;
       state.batchUnit = null;
+      state.minimumQuantity = null;
       state.photos = [];
     }
     state.initialized = true;
@@ -139,6 +141,14 @@ function renderMiBasicsSection(state) {
           placeholder="0.00" />
         <span class="mi-price-unit" style="color:var(--mauve);font-size:13px;">${unit ? 'per ' + escapeMiHtml(unit) : ''}</span>
       </div>
+
+      <div class="pmb-section-label" style="margin-top:16px;">Minimum order</div>
+      <input type="number" step="1" min="1" class="pmb-input mi-narrow-input"
+        value="${state.minimumQuantity ? escapeMiAttr(state.minimumQuantity) : ''}"
+        oninput="onMiMinQtyInput(event)"
+        placeholder="No minimum" />
+      <div class="mi-hint" style="margin-top:6px;">e.g. 2 if you require at least 2 dozen.</div>
+
       <button type="button" class="pmb-custom-link" data-action="menuItem:priceCheck">
         Want to know if you're actually making money on this? Enter your recipe to find out, now!
       </button>
@@ -467,6 +477,13 @@ async function onMiPhotoFilesChange(e) {
     } catch (err) { alert(err.message); }
   }
   Router.refresh({ keepScroll: true });
+}
+
+function onMiMinQtyInput(e) {
+  const s = Router.state.menuItem;
+  if (!s) return;
+  const v = parseInt(e.target.value, 10);
+  s.minimumQuantity = Number.isFinite(v) && v > 0 ? v : null;
 }
 
 function onMiMaxColorsInput(e) {

@@ -1,4 +1,4 @@
-const { esc, layout } = require('./public-site');
+const { esc, layout, minimumLabel } = require('./public-site');
 
 // Embed JSON safely inside a <script> tag.
 function jsonScript(id, data) {
@@ -26,6 +26,8 @@ function addonRow(a, i) {
 function renderOrderFlow({ baker, item, availableDates, serviceFee }) {
   const soldPerLabel = item.soldPer ? `per ${esc(item.soldPer)}` : '';
   const qtyUnit = item.soldPer ? esc(item.soldPer) : 'order';
+  const minQty = Number(item.minimumQuantity) > 0 ? Math.floor(item.minimumQuantity) : 1;
+  const minLine = minimumLabel(item.minimumQuantity, item.soldPer);
   const datePills = availableDates.length
     ? availableDates.map(d => `<button type="button" class="date-pill" data-act="pick-date" data-date="${esc(d)}"></button>`).join('')
     : `<p class="muted">This baker has no open pickup dates right now. Please check back soon.</p>`;
@@ -47,11 +49,12 @@ function renderOrderFlow({ baker, item, availableDates, serviceFee }) {
       ${item.coverPhoto ? `<div class="order-cover" style="background-image:url('${esc(item.coverPhoto)}')"></div>` : ''}
       <h1>${esc(item.name)}</h1>
       <div class="price-line">$${Number(item.price).toFixed(2)} ${soldPerLabel}</div>
+      ${minLine ? `<div class="order-min">${esc(minLine)}</div>` : ''}
       <div class="field">
         <label>How many ${esc(qtyUnit)}${item.soldPer ? 's' : '(s)'}?</label>
         <div class="stepper big">
           <button type="button" class="step-btn" data-act="qty-dec" aria-label="Fewer">−</button>
-          <span class="step-val" id="qtyVal">1</span>
+          <span class="step-val" id="qtyVal">${minQty}</span>
           <button type="button" class="step-btn" data-act="qty-inc" aria-label="More">+</button>
         </div>
       </div>
