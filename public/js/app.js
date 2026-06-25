@@ -95,6 +95,36 @@ async function copyToClipboard(text) {
   try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
 }
 
+// ── Baker FAQ chat ──
+function runBakerFaq(question) {
+  const q = (question || '').trim();
+  if (!q) return;
+  const thread = document.getElementById('faqThread');
+  if (!thread) return;
+  const sugg = document.getElementById('faqSuggestions');
+  const input = document.getElementById('faqInput');
+  if (sugg && sugg.parentNode) sugg.remove();
+  if (input) input.value = '';
+  const FALLBACK = 'Sorry, something went wrong. Email us at hello@bkdlocal.com';
+  const bubble = (cls, text) => {
+    const d = document.createElement('div');
+    d.className = 'faq-bubble ' + cls;
+    d.textContent = text;
+    thread.appendChild(d);
+    thread.scrollTop = thread.scrollHeight;
+    return d;
+  };
+  bubble('faq-user', q);
+  const bot = bubble('faq-bot', 'Thinking...');
+  fetch('/api/faq/baker', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question: q })
+  })
+    .then(r => r.json()).then(j => { bot.textContent = (j && j.answer) || FALLBACK; thread.scrollTop = thread.scrollHeight; })
+    .catch(() => { bot.textContent = FALLBACK; });
+}
+
 // ── Bake Timer helpers ──
 // A single self-clearing 1s ticker updates the display while running; it looks
 // the element + persisted state up each tick so it survives re-renders, screen
@@ -157,6 +187,9 @@ const Actions = {
       showShareToast('Could not copy. Your link: ' + url);
     }
   },
+
+  'faq:send': (fields) => { runBakerFaq(fields && fields.question); },
+  'faq:pill': ({ el }) => { runBakerFaq(el.dataset.q); },
 
   'order:accept': async ({ id }) => {
     try {
@@ -829,7 +862,8 @@ const SCREENS = {
   menuItem: renderMenuItem,
   priceMyBakes: renderPriceMyBakes,
   reviews: renderReviews,
-  profile: renderProfile
+  profile: renderProfile,
+  faq: renderFaq
 };
 
 Api.onUnauthorized = () => {
@@ -841,7 +875,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (readBakeTimer().state === 'running') ensureBakeTimerTick();
   try {
     await Api.getSession();
-    Router.navigate('home');
+    // Deep-link support for /app/faq (otherwise default to the dashboard).
+    Router.navigate(/\/faq\/?$/.test(window.location.pathname) ? 'faq' : 'home');
     setInterval(refreshUnreadBadge, 30000);
   } catch {
     // onUnauthorized already routed to login when status was 401

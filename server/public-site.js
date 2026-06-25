@@ -109,6 +109,7 @@ function header(viewer) {
   } else {
     nav = `<nav class="site-nav">
       <a href="/#how">How it works</a>
+      <a href="/faq">FAQ</a>
       <a href="/app">For bakers</a>
       <a class="nav-cta" href="/app">Are you a baker?</a>
     </nav>`;
@@ -122,7 +123,7 @@ function header(viewer) {
 function footer() {
   return `<footer class="site-footer">
     <div>© Bkd Local · local bakers, baked to order</div>
-    <div class="footer-links"><a href="/bakers">Browse bakers</a> · <a href="/app">For bakers</a></div>
+    <div class="footer-links"><a href="/bakers">Browse bakers</a> · <a href="/faq">FAQ</a> · <a href="/app">For bakers</a></div>
     <a class="footer-baker-cta" href="/join">Are you a baker? Join Bkd Local</a>
   </footer>`;
 }
@@ -443,6 +444,36 @@ function renderProfile({ baker, menu, reviews, viewer }) {
   return layout({ title: `${baker.businessName} · Bkd Local`, description: desc, body, viewer });
 }
 
+// Shared AI FAQ chat widget markup. endpoint is the POST URL; pills are starter questions.
+function faqWidget(endpoint, pills) {
+  return `<div class="faq-widget" data-endpoint="${esc(endpoint)}">
+    <div class="faq-thread" id="faqThread">
+      <div class="faq-suggestions" id="faqSuggestions">
+        ${pills.map(q => `<button type="button" class="faq-pill" data-q="${esc(q)}">${esc(q)}</button>`).join('')}
+      </div>
+    </div>
+    <form class="faq-inputbar" id="faqForm">
+      <input id="faqInput" type="text" placeholder="Ask a question..." autocomplete="off" aria-label="Ask a question">
+      <button type="submit" class="faq-send" aria-label="Send">Send</button>
+    </form>
+  </div>`;
+}
+
+function renderFaqPage({ viewer }) {
+  const body = `
+  <section class="faq-page">
+    <h1 class="faq-title">Ask us anything.</h1>
+    <p class="faq-subtitle">Get instant answers about ordering from local bakers.</p>
+    ${faqWidget('/api/faq/customer', ['How does ordering work?', 'When do I pick up my order?', 'What if something is wrong?'])}
+  </section>
+  <script src="/js/faq.js"></script>`;
+  return layout({
+    title: 'Ask us anything · Bkd Local',
+    description: 'Get instant answers about ordering from local bakers on Bkd Local.',
+    body, viewer
+  });
+}
+
 function renderNotFound() {
   return layout({
     title: 'Not found · Bkd Local',
@@ -455,4 +486,4 @@ function renderNotFound() {
   });
 }
 
-module.exports = { renderHome, renderDirectory, renderProfile, renderNotFound, esc, layout, minimumLabel };
+module.exports = { renderHome, renderDirectory, renderProfile, renderFaqPage, renderNotFound, esc, layout, minimumLabel };

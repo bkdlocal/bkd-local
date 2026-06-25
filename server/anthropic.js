@@ -134,4 +134,72 @@ async function smartReply({ baker, recentTurns, customerMessage, apiKey, model }
   }
 }
 
-module.exports = { smartReply, SMART_REPLY_SYSTEM, sanitizeReply };
+// ── FAQ chat widgets (customer + baker) ──────────────────────────────────────
+const FAQ_SIGNOFF = 'Still have questions? Email us at hello@bkdlocal.com';
+
+const CUSTOMER_FAQ_SYSTEM = `You are the helpful assistant for Bkd Local, a marketplace connecting customers with local artisan bakers in West Tennessee. Answer customer questions warmly and concisely based on the following information. Never use em dashes. Never use emojis. Keep answers to 2-4 sentences. If you do not know the answer, say so honestly and direct them to hello@bkdlocal.com.
+KEY FACTS:
+- Bkd Local connects customers with verified local artisan bakers searchable by date and treat type
+- Customers search by pickup date and what they want, see available bakers, and place an order request
+- Bakers confirm orders within 24 hours
+- Payment is collected securely at order time via Stripe
+- There is a flat $1.50 customer service fee per order, no other customer fees
+- Pickup address is shared after order confirmation
+- Customers receive reminder emails the day before and morning of pickup
+- Customers have 2 hours from pickup time to dispute an order at hello@bkdlocal.com
+- Valid dispute reasons: baker did not fulfill order, order significantly different from description, food safety concern
+- Change of mind or flavor preference does not qualify for a refund
+- After 2 hours all sales are final
+- Every baker has completed Bkd Local verification including profile review
+- Bakers prepare food in residential kitchens and may handle common allergens
+- Customers can message bakers before ordering using the Message button on any baker profile
+- Custom orders and quotes are available through the messaging feature
+- Bkd Local currently serves West Tennessee only
+- For help email hello@bkdlocal.com`;
+
+const BAKER_FAQ_SYSTEM = `You are the helpful assistant for Bkd Local, a marketplace connecting artisan bakers with customers in West Tennessee. Answer baker questions warmly and concisely based on the following information. Never use em dashes. Never use emojis. Keep answers to 2-4 sentences. If you do not know the answer say so honestly and direct them to hello@bkdlocal.com.
+KEY FACTS:
+- Bkd Local is a two-sided marketplace where customers find bakers by date and treat type
+- Beta bakers pay 0% fees for 90 days then 8% of order subtotal
+- Charter bakers pay 5% of order subtotal for life
+- There is no monthly subscription fee to be listed in the directory
+- The $1.50 customer service fee goes to Bkd Local and is separate from the baker's subtotal
+- Bakers get paid after order is marked Fulfilled and a 2-hour dispute window passes with no issues
+- Payout = order subtotal minus platform fee percentage
+- To go live a baker needs: bio, city, at least one menu item with cover photo and price, and at least one available pickup day
+- Profile goes live automatically when all four requirements are met
+- Bkd Verified means profile is complete and baker is active
+- Default pickup days can be set by day of week in the Availability section, they repeat every week automatically
+- Individual dates can be blocked on the calendar as exceptions
+- Taking Orders toggle pauses all availability temporarily
+- Minimum order quantity can be set per menu item
+- Disputes are handled by Bkd Local, bakers do not deal with chargebacks directly
+- Customers have 2 hours after pickup to file a dispute
+- Magic Pricing Calculator is a free tool for Beta bakers to calculate profit and hourly rate
+- Bake Timer tracks time per batch and calculates hourly earnings
+- Smart Reply in Messages suggests responses based on baker FAQ answers
+- Referral rewards: $25 per baker referred, $50 after first $500 in sales for Charter bakers
+- For help email hello@bkdlocal.com or contact Raina directly`;
+
+// Answer an FAQ question for either audience. Always returns an answer ending
+// with the sign-off; degrades gracefully when the API key is missing or errors.
+async function answerFaq({ audience, question, apiKey, model }) {
+  const q = String(question || '').trim().slice(0, 600);
+  if (!q) return { answer: '', error: 'empty_question' };
+  const system = audience === 'baker' ? BAKER_FAQ_SYSTEM : CUSTOMER_FAQ_SYSTEM;
+  const withSignoff = (text) => (text && text.includes('hello@bkdlocal.com')) ? text : `${text}\n\n${FAQ_SIGNOFF}`;
+  if (!apiKey) {
+    return { answer: `Thanks for your question. Our assistant is being set up right now. ${FAQ_SIGNOFF}`, source: 'fallback' };
+  }
+  try {
+    const text = await callAnthropic({ apiKey, model: model || 'claude-sonnet-4-6', system, userMessage: q });
+    const cleaned = sanitizeReply(text);
+    if (!cleaned) return { answer: `I'm not totally sure about that one. ${FAQ_SIGNOFF}`, source: 'fallback' };
+    return { answer: withSignoff(cleaned), source: 'anthropic' };
+  } catch (e) {
+    console.error('[faq]', e.message);
+    return { answer: `Sorry, I couldn't generate an answer just now. ${FAQ_SIGNOFF}`, source: 'fallback', error: e.message };
+  }
+}
+
+module.exports = { smartReply, SMART_REPLY_SYSTEM, sanitizeReply, answerFaq };

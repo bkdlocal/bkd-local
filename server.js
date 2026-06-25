@@ -24,7 +24,7 @@ const {
   buildCookie
 } = require('./server/session');
 const mock = require('./server/mock-data');
-const { smartReply } = require('./server/anthropic');
+const { smartReply, answerFaq } = require('./server/anthropic');
 const cloudinary = require('./server/cloudinary');
 const multer = require('multer');
 const { hashPassword, verifyPassword, generateToken } = require('./server/passwords');
@@ -1094,6 +1094,31 @@ app.delete('/api/menu/:id', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// AI FAQ widgets. Customer endpoint is public; baker endpoint requires auth.
+app.post('/api/faq/customer', async (req, res, next) => {
+  try {
+    const r = await answerFaq({
+      audience: 'customer',
+      question: req.body && req.body.question,
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
+    });
+    res.json(r);
+  } catch (e) { next(e); }
+});
+
+app.post('/api/faq/baker', requireAuth, async (req, res, next) => {
+  try {
+    const r = await answerFaq({
+      audience: 'baker',
+      question: req.body && req.body.question,
+      apiKey: process.env.ANTHROPIC_API_KEY,
+      model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
+    });
+    res.json(r);
+  } catch (e) { next(e); }
+});
+
 app.post('/api/messages/:id/smart-reply', requireAuth, async (req, res, next) => {
   try {
     const baker = await currentBaker(req);
@@ -1714,6 +1739,12 @@ app.get('/bakers', async (req, res, next) => {
       total: all.length,
       viewer: await viewerFor(req)
     }));
+  } catch (e) { next(e); }
+});
+
+app.get('/faq', async (req, res, next) => {
+  try {
+    res.type('html').send(publicSite.renderFaqPage({ viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
 });
 

@@ -78,6 +78,10 @@ async function renderHome() {
           </span>
         </button>
 
+        <button type="button" class="dash-faq-link" data-screen="faq">
+          <i class="ti ti-help-circle" aria-hidden="true"></i> Baker FAQ
+        </button>
+
         <div class="section-header">
           <div class="section-title-sm">Recent orders</div>
           <div class="section-link" data-screen="orders">See all</div>
