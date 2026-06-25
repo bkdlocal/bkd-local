@@ -134,6 +134,10 @@ function custBottomNav(viewer) {
   const dot = `<span class="cust-nav-dot" data-nav-unread${n > 0 ? '' : ' hidden'}></span>`;
   return `<nav class="cust-bottom-nav">
     <div class="cust-nav-inner">
+      <a class="cust-nav-box" href="/bakers">
+        <i class="ti ti-search cust-nav-icon" aria-hidden="true"></i>
+        <span class="cust-nav-label">Browse</span>
+      </a>
       <a class="cust-nav-box" href="/customer/orders">
         <i class="ti ti-package cust-nav-icon" aria-hidden="true"></i>
         <span class="cust-nav-label">My Orders</span>
