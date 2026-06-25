@@ -141,11 +141,12 @@ async function renderPriceMyBakes(state = {}) {
         <button type="button" class="pmb-back" data-action="nav:back" aria-label="Back">‹</button>
         <div class="pmb-top-text">
           <div class="greeting-sub">${escapePmbHtml(subtext)}</div>
-          <div class="greeting-name">Know Your Worth</div>
+          <div class="greeting-name">Magic Pricing Calculator</div>
         </div>
         <div class="pmb-top-spacer"></div>
       </div>
       <div class="scroll-content pmb-scroll">
+        <div class="pmb-free-badge">✦ Free for Beta bakers — for a limited time</div>
         ${menuItem ? renderPmbBatchSection(state) : ''}
         ${renderPmbStoreSection(state)}
         ${renderPmbIngredientsSection(state)}

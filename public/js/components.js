@@ -2,7 +2,8 @@ const NAV_ITEMS = [
   { id: 'home',         icon: 'ti-home',           label: 'Home' },
   { id: 'orders',       icon: 'ti-package',        label: 'Orders' },
   { id: 'availability', icon: 'ti-calendar',       label: 'Availability' },
-  { id: 'menu',         icon: 'ti-clipboard-list', label: 'Menu' }
+  { id: 'menu',         icon: 'ti-clipboard-list', label: 'Menu' },
+  { id: 'priceMyBakes', icon: 'ti-calculator',     label: '✦ Magic Pricing', magic: true }
 ];
 
 // Logo bar shown at the top of every baker-app screen: "bkd" in Berry Rose,
@@ -39,7 +40,7 @@ function renderBottomNav(activeId) {
           ? `<span class="nav-dot" aria-label="Unread messages"></span>`
           : '';
         return `
-        <button class="nav-box" type="button" data-screen="${item.id}"${item.id === activeId ? ' aria-current="page"' : ''}>
+        <button class="nav-box${item.magic ? ' nav-box--magic' : ''}" type="button" data-screen="${item.id}"${item.id === activeId ? ' aria-current="page"' : ''}>
           ${dot}
           <i class="ti ${item.icon} nav-icon" aria-hidden="true"></i>
           <span class="nav-label">${item.label}</span>

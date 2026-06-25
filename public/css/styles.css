@@ -125,6 +125,21 @@ body {
   width: 7px; height: 7px; border-radius: 50%;
   background: var(--plum);
 }
+/* Premium Magic Pricing box: gradient border (#D4C8E0 -> berry) instead of the
+   solid berry border, while keeping the same ombre fill as the other boxes. */
+.nav-box--magic {
+  border: 1.5px solid transparent;
+  background:
+    linear-gradient(160deg, #D4C8E0 0%, #F2C4D8 100%) padding-box,
+    linear-gradient(135deg, #D4C8E0 0%, #C2557E 100%) border-box;
+}
+/* "Free for Beta" pill on the Magic Pricing Calculator page */
+.pmb-free-badge {
+  display: block; width: fit-content; margin: 4px auto 14px;
+  background: var(--petal); color: var(--berry);
+  font-size: 11px; font-weight: 500;
+  padding: 5px 14px; border-radius: 999px; text-align: center;
+}
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center;

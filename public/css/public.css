@@ -66,7 +66,45 @@ h1, h2, h3, h4 { font-weight: 500; letter-spacing: -0.01em; }
 }
 .site-nav .nav-badge[hidden] { display: none; }
 
+/* Logged-in customer header: two bare Berry Rose icons flush right */
+.site-nav--icons { gap: 14px; }
+.hdr-icon { position: relative; display: flex; align-items: center; color: #C2557E; line-height: 1; }
+.hdr-icon .ti { font-size: 22px; }
+.hdr-dot {
+  position: absolute; top: -1px; right: -1px;
+  width: 7px; height: 7px; border-radius: 50%; background: #2C1A24;
+}
+.hdr-dot[hidden] { display: none; }
+
 main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+/* App-style bottom nav for logged-in customers (3 boxes, fixed) */
+.cust-bottom-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+  background: #F9E4EE;
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+}
+.cust-nav-inner {
+  max-width: 264px; margin: 0 auto;
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+}
+.cust-nav-box {
+  position: relative; aspect-ratio: 1 / 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: linear-gradient(160deg, #D4C8E0 0%, #F2C4D8 100%);
+  border: 1.5px solid #C2557E; border-radius: 10px;
+  text-decoration: none;
+}
+.cust-nav-icon { font-size: 22px; color: #C2557E; line-height: 1; }
+.cust-nav-label { font-size: 8px; color: #C2557E; font-weight: 500; line-height: 1; }
+.cust-nav-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 7px; height: 7px; border-radius: 50%; background: #2C1A24;
+}
+.cust-nav-dot[hidden] { display: none; }
+body.has-cust-nav { padding-bottom: 124px; }
+/* Keep the add-to-home-screen banner above the fixed bottom nav. */
+body.has-cust-nav .bkd-a2hs { bottom: 104px; }
 
 /* Buttons */
 .btn {

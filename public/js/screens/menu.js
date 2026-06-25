@@ -70,7 +70,7 @@ function renderMenuCard(item) {
       </button>
       <button type="button" class="menu-price-btn"
         data-action="menu:priceItem" data-id="${item.id}">
-        ✦ Know Your Worth
+        ✦ Magic Pricing Calculator
       </button>
     </div>
   `;

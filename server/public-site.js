@@ -101,20 +101,21 @@ function header(viewer) {
   let nav;
   if (v.customer) {
     const n = Number(v.unread) || 0;
-    const badge = `<span class="nav-badge" data-nav-unread${n > 0 ? '' : ' hidden'}>${n > 0 ? (n > 9 ? '9+' : n) : ''}</span>`;
-    nav = `
-      <a href="/customer/messages">Messages ${badge}</a>
-      <a href="/customer/orders">Orders</a>
-      <a class="nav-cta" href="/customer/profile">Profile</a>`;
+    const dot = `<span class="hdr-dot" data-nav-unread${n > 0 ? '' : ' hidden'}></span>`;
+    nav = `<nav class="site-nav site-nav--icons">
+      <a class="hdr-icon" href="/customer/messages" aria-label="Messages"><i class="ti ti-message-circle" aria-hidden="true"></i>${dot}</a>
+      <a class="hdr-icon" href="/customer/profile" aria-label="Profile"><i class="ti ti-user" aria-hidden="true"></i></a>
+    </nav>`;
   } else {
-    nav = `
+    nav = `<nav class="site-nav">
       <a href="/#how">How it works</a>
       <a href="/app">For bakers</a>
-      <a class="nav-cta" href="/app">Are you a baker?</a>`;
+      <a class="nav-cta" href="/app">Are you a baker?</a>
+    </nav>`;
   }
   return `<header class="site-header">
     <a class="brand" href="/"><img src="/img/bkdlocal-logo.svg" alt="bkd local"></a>
-    <nav class="site-nav">${nav}</nav>
+    ${nav}
   </header>`;
 }
 
@@ -123,6 +124,30 @@ function footer() {
     <div>© Bkd Local · local bakers, baked to order</div>
     <div class="footer-links"><a href="/bakers">Browse bakers</a> · <a href="/app">For bakers</a></div>
   </footer>`;
+}
+
+// App-style bottom nav, logged-in customers only. Hidden entirely when signed out.
+function custBottomNav(viewer) {
+  const v = viewer || {};
+  if (!v.customer) return '';
+  const n = Number(v.unread) || 0;
+  const dot = `<span class="cust-nav-dot" data-nav-unread${n > 0 ? '' : ' hidden'}></span>`;
+  return `<nav class="cust-bottom-nav">
+    <div class="cust-nav-inner">
+      <a class="cust-nav-box" href="/customer/orders">
+        <i class="ti ti-package cust-nav-icon" aria-hidden="true"></i>
+        <span class="cust-nav-label">My Orders</span>
+      </a>
+      <a class="cust-nav-box" href="/customer/messages">
+        <i class="ti ti-message-circle cust-nav-icon" aria-hidden="true"></i>${dot}
+        <span class="cust-nav-label">Messages</span>
+      </a>
+      <a class="cust-nav-box" href="/customer/profile">
+        <i class="ti ti-user cust-nav-icon" aria-hidden="true"></i>
+        <span class="cust-nav-label">Profile</span>
+      </a>
+    </div>
+  </nav>`;
 }
 
 // Date-first search. Date leads; the treat/name/occasion box is a secondary,
@@ -182,15 +207,17 @@ function layout({ title, description, body, viewer }) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
 <link rel="stylesheet" href="/css/public.css">
 <link rel="apple-touch-icon" href="/icon-180.png">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="manifest" href="/manifest.json">
 </head>
-<body>
+<body class="${viewer && viewer.customer ? 'has-cust-nav' : ''}">
 ${header(viewer)}
 <main>${body}</main>
 ${footer()}
+${custBottomNav(viewer)}
 <script src="/js/nav-badge.js"></script>
 <script src="/js/a2hs-banner.js"></script>
 </body>
