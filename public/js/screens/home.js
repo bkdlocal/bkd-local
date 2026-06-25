@@ -65,6 +65,17 @@ async function renderHome() {
           </button>
         </div>
 
+        <button type="button" class="dash-magic" data-screen="priceMyBakes">
+          <span class="dash-magic-spark dash-magic-spark-1" aria-hidden="true">✦</span>
+          <span class="dash-magic-spark dash-magic-spark-2" aria-hidden="true">✦</span>
+          <span class="dash-magic-free">FREE</span>
+          <span class="dash-magic-icon"><i class="ti ti-calculator" aria-hidden="true"></i></span>
+          <span class="dash-magic-text">
+            <span class="dash-magic-title">Magic Pricing Calculator</span>
+            <span class="dash-magic-sub">Find out what you're really making</span>
+          </span>
+        </button>
+
         <div class="section-header">
           <div class="section-title-sm">Recent orders</div>
           <div class="section-link" data-screen="orders">See all</div>

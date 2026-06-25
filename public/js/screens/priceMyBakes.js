@@ -137,16 +137,20 @@ async function renderPriceMyBakes(state = {}) {
   return `
     <div class="screen">
       ${renderLogoBar()}
-      <div class="pmb-top-nav">
-        <button type="button" class="pmb-back" data-action="nav:back" aria-label="Back">‹</button>
-        <div class="pmb-top-text">
-          <div class="greeting-sub">${escapePmbHtml(subtext)}</div>
-          <div class="greeting-name">Magic Pricing Calculator</div>
+      <div class="pmb-magic-header">
+        <span class="pmb-spark pmb-spark-1" aria-hidden="true">✦</span>
+        <span class="pmb-spark pmb-spark-2" aria-hidden="true">✦</span>
+        <span class="pmb-spark pmb-spark-3" aria-hidden="true">✦</span>
+        <div class="pmb-magic-row">
+          <button type="button" class="pmb-back" data-action="nav:back" aria-label="Back">‹</button>
+          <div class="pmb-magic-headtext">
+            <div class="pmb-eyebrow">${escapePmbHtml(subtext)}</div>
+            <div class="pmb-title">Magic Pricing Calculator</div>
+          </div>
         </div>
-        <div class="pmb-top-spacer"></div>
+        <div class="pmb-free-badge">✦ Free for Beta bakers — for a limited time</div>
       </div>
       <div class="scroll-content pmb-scroll">
-        <div class="pmb-free-badge">✦ Free for Beta bakers — for a limited time</div>
         ${menuItem ? renderPmbBatchSection(state) : ''}
         ${renderPmbStoreSection(state)}
         ${renderPmbIngredientsSection(state)}

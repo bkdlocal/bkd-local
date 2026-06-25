@@ -144,12 +144,30 @@ body {
   background: #C2557E; color: #ffffff; font-size: 6px; font-weight: 500;
   line-height: 1; padding: 2px 4px; border-radius: 999px;
 }
-/* "Free for Beta" pill on the Magic Pricing Calculator page */
+/* Dark jewel header on the Magic Pricing Calculator page */
+.pmb-magic-header {
+  position: relative; overflow: hidden; flex-shrink: 0;
+  background: linear-gradient(160deg, #2C1A24 0%, #7A5068 50%, #C2557E 100%);
+  padding: 8px 16px 16px;
+}
+.pmb-magic-row { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; }
+.pmb-magic-headtext { min-width: 0; }
+.pmb-eyebrow {
+  font-size: 11px; font-weight: 500; letter-spacing: 0.12em;
+  text-transform: uppercase; color: rgba(255, 255, 255, 0.75);
+}
+.pmb-title { font-size: 20px; font-weight: 500; color: #ffffff; letter-spacing: -0.01em; }
+.pmb-spark { position: absolute; z-index: 0; line-height: 1; pointer-events: none; }
+.pmb-spark-1 { top: 12px;  right: 22px; font-size: 8px;  color: #F2C4D8; }
+.pmb-spark-2 { top: 40px;  right: 54px; font-size: 11px; color: #D4C8E0; }
+.pmb-spark-3 { bottom: 16px; left: 46%;  font-size: 6px;  color: #F2C4D8; }
+/* "Free for Beta" highlight pill — prominent feature callout */
 .pmb-free-badge {
-  display: block; width: fit-content; margin: 4px auto 14px;
-  background: var(--petal); color: var(--berry);
-  font-size: 11px; font-weight: 500;
-  padding: 5px 14px; border-radius: 999px; text-align: center;
+  position: relative; z-index: 1;
+  display: block; width: fit-content; margin: 14px auto 0;
+  background: #ffffff; color: var(--berry);
+  font-size: 13px; font-weight: 500;
+  padding: 8px 20px; border-radius: 999px; text-align: center;
 }
 
 .btn {
@@ -211,6 +229,29 @@ body {
 .dash-card-title { font-size: 14px; font-weight: 500; color: var(--plum); }
 .dash-card-sub { font-size: 11px; color: var(--mauve); }
 .order-detail-star { font-size: 11px; vertical-align: -1px; color: var(--berry); }
+
+/* Full-width premium Magic Pricing tile below the 2x2 grid */
+.dash-magic {
+  position: relative; overflow: hidden;
+  width: 100%; margin-top: 10px;
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(160deg, #2C1A24 0%, #7A5068 50%, #C2557E 100%);
+  border: 0; border-radius: 16px; padding: 16px 18px;
+  cursor: pointer; text-align: left;
+}
+.dash-magic-icon { display: flex; align-items: center; justify-content: center; color: #ffffff; }
+.dash-magic-icon .ti { font-size: 22px; color: #ffffff; }
+.dash-magic-text { display: flex; flex-direction: column; gap: 2px; }
+.dash-magic-title { font-size: 15px; font-weight: 500; color: #ffffff; }
+.dash-magic-sub { font-size: 12px; color: rgba(255, 255, 255, 0.8); }
+.dash-magic-spark { position: absolute; color: #F2C4D8; line-height: 1; pointer-events: none; }
+.dash-magic-spark-1 { top: 12px; right: 84px; font-size: 11px; }
+.dash-magic-spark-2 { bottom: 12px; right: 130px; font-size: 7px; }
+.dash-magic-free {
+  position: absolute; top: 12px; right: 14px;
+  background: #ffffff; color: var(--berry); font-size: 10px; font-weight: 500;
+  padding: 3px 9px; border-radius: 999px; line-height: 1;
+}
 
 .order-card {
   background: white; border-radius: 12px; padding: 12px 14px;
@@ -1954,12 +1995,19 @@ body {
 
 /* Summary card */
 .pmb-summary-card {
-  background: linear-gradient(135deg, var(--berry), #A6406A);
+  position: relative; overflow: hidden;
+  background: linear-gradient(160deg, #2C1A24 0%, #7A5068 50%, #C2557E 100%);
   border-radius: 20px;
   padding: 18px;
   color: var(--white);
   margin-top: 4px;
 }
+.pmb-summary-card::before,
+.pmb-summary-card::after {
+  content: "✦"; position: absolute; line-height: 1; pointer-events: none;
+}
+.pmb-summary-card::before { top: 12px;  right: 16px; font-size: 11px; color: #F2C4D8; }
+.pmb-summary-card::after  { bottom: 14px; left: 16px; font-size: 7px;  color: #D4C8E0; }
 .pmb-summary-title {
   font-size: 12px;
   font-weight: 500;
