@@ -1,3 +1,4 @@
+const { withAssetVersion } = require('./build');
 const REGION = 'West Tennessee';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
@@ -199,7 +200,7 @@ function hero(filters, { compact } = {}) {
 }
 
 function layout({ title, description, body, viewer }) {
-  return `<!DOCTYPE html>
+  return withAssetVersion(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -227,7 +228,7 @@ ${custBottomNav(viewer)}
 <script src="/js/nav-badge.js"></script>
 <script src="/js/a2hs-banner.js"></script>
 </body>
-</html>`;
+</html>`);
 }
 
 function renderHome({ bakers, viewer }) {

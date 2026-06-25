@@ -40,6 +40,12 @@ const messaging = require('./server/messaging');
 const ratings = require('./server/ratings');
 const reminders = require('./server/reminders');
 const { buildPickupIcs } = require('./server/ics');
+const { withAssetVersion } = require('./server/build');
+// Cache-busted baker SPA shell: local /js and /css URLs get ?v=<build> so an
+// installed PWA always fetches the current bundle after a deploy.
+const INDEX_HTML = withAssetVersion(
+  require('fs').readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8')
+);
 
 const PORT = process.env.PORT || 3000;
 const SESSION_SECRET = getSessionSecret();
@@ -2377,9 +2383,10 @@ app.get('/api/customer/unread-count', requireCustomerAuth, async (req, res, next
   } catch (e) { next(e); }
 });
 
-// Baker-facing SPA now lives under /app (client-side routed).
+// Baker-facing SPA now lives under /app (client-side routed). Served from the
+// cache-busted in-memory copy so deploys reach installed PWAs immediately.
 app.get(['/app', '/app/*'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.type('html').send(INDEX_HTML);
 });
 
 app.use((err, req, res, next) => {
