@@ -149,8 +149,10 @@ function ensureBakeTimerTick() {
 // (kept in sync by onPmbListedPriceInput) so the rate still computes even if
 // the input element can't be found at the moment of pause.
 function bakeTimerResultMessage(elapsedMs) {
+  // Read the live "Your listed price" input (by id, then by class), falling back
+  // to the in-memory state value kept in sync by onPmbListedPriceInput.
   let price = NaN;
-  const input = document.getElementById('pmb-listed-price');
+  const input = document.getElementById('pmb-listed-price') || document.querySelector('.pmb-summary-price-input');
   if (input && input.value !== '') price = parseFloat(input.value);
   if (!(price > 0) && typeof Router !== 'undefined' && Router.state && Router.state.priceMyBakes) {
     price = Number(Router.state.priceMyBakes.listedPrice);

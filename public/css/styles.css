@@ -173,12 +173,14 @@ body {
 /* Bake Timer card — same dark jewel treatment as the header + profit summary */
 .pmb-timer-card {
   position: relative; overflow: hidden;
-  margin: 0 0 24px;
+  margin: 0 0 24px !important;
   background: linear-gradient(160deg, #2C1A24 0%, #7A5068 50%, #C2557E 100%);
   border-radius: 16px;
   padding: 18px 18px 20px;
   text-align: center;
 }
+/* Guaranteed gap below the timer card regardless of sibling margins. */
+.pmb-timer-card + * { margin-top: 4px; }
 .pmb-timer-card > :not(.pmb-spark) { position: relative; z-index: 1; }
 .pmb-timer-label {
   font-size: 12px; font-weight: 500; text-transform: uppercase;
