@@ -43,10 +43,10 @@ async function renderHome() {
         </button>
 
         <div class="dash-grid">
-          <button class="dash-card" type="button" data-screen="profile">
-            <div class="dash-card-icon"><i class="ti ti-user" aria-hidden="true"></i></div>
-            <div class="dash-card-title">My profile</div>
-            <div class="dash-card-sub">Edit &amp; preview</div>
+          <button class="dash-card" type="button" data-screen="orders">
+            <div class="dash-card-icon"><i class="ti ti-package" aria-hidden="true"></i></div>
+            <div class="dash-card-title">Orders</div>
+            <div class="dash-card-sub">${stats.newOrders} new</div>
           </button>
           <button class="dash-card" type="button" data-screen="availability">
             <div class="dash-card-icon"><i class="ti ti-calendar" aria-hidden="true"></i></div>

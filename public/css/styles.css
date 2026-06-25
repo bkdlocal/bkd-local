@@ -62,11 +62,18 @@ body {
 .app-logo-bkd { color: var(--berry); }
 .app-logo-local { color: var(--plum); }
 .app-logo-pin { color: var(--berry); font-size: 18px; line-height: 1; }
-.app-logo-profile {
+.app-logo-actions { display: flex; align-items: center; gap: 16px; }
+.app-logo-icon {
+  position: relative;
   background: none; border: 0; padding: 0; cursor: pointer;
   color: var(--berry); display: flex; align-items: center; line-height: 1;
 }
-.app-logo-profile .ti { font-size: 22px; }
+.app-logo-icon .ti { font-size: 22px; }
+.app-logo-dot {
+  position: absolute; top: -1px; right: -1px;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--plum);
+}
 
 .top-nav {
   background: var(--blush); padding: 6px 20px 14px;
