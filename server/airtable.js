@@ -222,6 +222,7 @@ function bakerFromRecord(rec) {
     feeRate: parseFeeRate(f['Fee Rate']),
     pickupLocation: f['Exact Pick-up Address'] || null,
     pickupWindows: f['Pick-up Windows'] || null,
+    defaultPickupDays: f['Default Pickup Days'] || '',
     profileStatus: f['Profile Status'] || null,
     badge: f['Badge'] || null,
     bio: f['Bio'] || null,
@@ -244,7 +245,8 @@ function slotFromRecord(rec) {
     id: rec.id,
     date: f['Available Date'] || null,
     slotsAvailable: available,
-    slotsFilled: filled
+    slotsFilled: filled,
+    isException: f['Is Exception'] === true
   };
 }
 

@@ -578,14 +578,48 @@ const Actions = {
   },
 
   'availability:toggleAccepting': async ({ value }) => {
-    await Api.setAccepting(value === 'on');
-    Router.refresh();
+    const s = Router.state.availability;
+    const next = value === 'on';
+    if (s) s.accepting = next;            // optimistic
+    Router.refresh({ keepScroll: true });
+    try { await Api.setAccepting(next); }
+    catch (e) { if (s) s.accepting = !next; alert(e.message); Router.refresh({ keepScroll: true }); }
   },
 
-  'availability:selectDate': ({ el }) => {
+  'availability:toggleDay': async ({ el }) => {
+    const s = Router.state.availability;
+    if (!s) return;
+    const day = el.dataset.day;
+    const set = new Set(s.defaultDays || []);
+    if (set.has(day)) set.delete(day); else set.add(day);
+    const order = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    s.defaultDays = order.filter(d => set.has(d));
+    Router.refresh({ keepScroll: true });    // repaint pills + calendar highlights
+    try { await Api.setDefaultDays(s.defaultDays); }
+    catch (e) { alert(e.message); }
+  },
+
+  'availability:toggleException': async ({ el }) => {
+    const s = Router.state.availability;
+    if (!s) return;
     const date = el.dataset.date;
-    const current = Router.state.availability?.selectedDate;
-    Router.navigate('availability', { selectedDate: current === date ? null : date });
+    if (!s.exceptions) s.exceptions = new Set();
+    const willBeException = !s.exceptions.has(date);
+    if (willBeException) s.exceptions.add(date); else s.exceptions.delete(date);
+    Router.refresh({ keepScroll: true });    // gray <-> available instantly
+    try {
+      const r = await Api.setException(date, willBeException);
+      if (r && r.ok === false) {
+        // Not supported yet (no Is Exception field): revert.
+        if (willBeException) s.exceptions.delete(date); else s.exceptions.add(date);
+        s.exceptionsSupported = false;
+        Router.refresh({ keepScroll: true });
+      }
+    } catch (e) {
+      if (willBeException) s.exceptions.delete(date); else s.exceptions.add(date);
+      alert(e.message);
+      Router.refresh({ keepScroll: true });
+    }
   },
 
   'availability:prevMonth': () => {
@@ -604,46 +638,6 @@ const Actions = {
     let m = (s.viewMonth ?? today.getMonth()) + 1;
     if (m > 11) { m = 0; y++; }
     Router.navigate('availability', { viewYear: y, viewMonth: m });
-  },
-
-  'availability:addSlot': async ({ el }) => {
-    const date = el.dataset.date;
-    const raw = prompt('How many orders will you accept on this day?', '4');
-    if (raw === null) return;
-    const count = parseInt(raw, 10);
-    if (!Number.isFinite(count) || count < 1) {
-      alert('Please enter a whole number of 1 or more.');
-      return;
-    }
-    try {
-      await Api.addSlot(date, count);
-      Router.navigate('availability', { selectedDate: date });
-    } catch (e) {
-      alert(e.message);
-    }
-  },
-
-  'availability:editSlot': async ({ id, el }) => {
-    const delta = parseInt(el.dataset.delta, 10);
-    const current = parseInt(el.parentElement.querySelector('.step-value').textContent, 10);
-    const next = Math.max(1, current + delta);
-    if (next === current) return;
-    try {
-      await Api.updateSlot(id, next);
-      Router.refresh();
-    } catch (e) {
-      alert(e.message);
-    }
-  },
-
-  'availability:removeSlot': async ({ id }) => {
-    if (!confirm('Remove this pickup date? Customers will no longer be able to book this day.')) return;
-    try {
-      await Api.removeSlot(id);
-      Router.navigate('availability', { selectedDate: null });
-    } catch (e) {
-      alert(e.message);
-    }
   },
 
   'profile:editZone': ({ el }) => {

@@ -122,6 +122,8 @@ const Api = {
 
   getAvailability()  { return this._get('/api/availability'); },
   setAccepting(value) { return this._post('/api/availability/accepting', { acceptingOrders: value }); },
+  setDefaultDays(days) { return this._post('/api/availability/default-days', { days }); },
+  setException(date, isException) { return this._post('/api/availability/exception', { date, isException }); },
   addSlot(date, slotsAvailable) { return this._post('/api/availability/slots', { date, slotsAvailable }); },
   updateSlot(id, slotsAvailable) { return this._patch(`/api/availability/slots/${id}`, { slotsAvailable }); },
   removeSlot(id)     { return this._delete(`/api/availability/slots/${id}`); },

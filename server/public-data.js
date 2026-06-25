@@ -25,6 +25,7 @@ function publicBakerFromRecord(rec) {
     bio: f['Bio'] || null,
     productTypes: toList(f['Product Types']),
     specialtyTags: toList(f['Specialty Tags']),
+    defaultPickupDays: toList(f['Default Pickup Days']),
     instagram: f['Instagram Handle'] || null,
     pickupWindows: f['Pick-up Windows'] || null,
     rating: typeof f['Baker Rating'] === 'number' ? f['Baker Rating'] : null,

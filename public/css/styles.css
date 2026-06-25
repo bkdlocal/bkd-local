@@ -872,6 +872,35 @@ body {
 .legend-available { background: var(--petal); }
 .legend-past      { background: var(--lavender); }
 
+/* ----- new availability model: default-day highlight + exceptions ----- */
+.cal-plain { background: transparent; color: var(--plum); cursor: default; }
+.cal-default { background: var(--petal); color: var(--plum); }
+.cal-default:active { background: #ECB0CB; }
+.cal-exception {
+  background: #D5CED2;
+  color: #8A7E86;
+  text-decoration: line-through;
+}
+.legend-default   { background: var(--petal); }
+.legend-exception { background: #D5CED2; }
+
+/* day-of-week toggles */
+.day-toggle-label { font-size: 11px; font-weight: 500; color: var(--mauve); margin-bottom: 10px; }
+.day-toggle-row { display: flex; gap: 6px; }
+.day-toggle {
+  flex: 1; padding: 9px 0; border-radius: 999px;
+  border: 1.5px solid var(--lavender); background: #fff;
+  color: var(--mauve); font-family: inherit; font-size: 12px; font-weight: 500;
+  cursor: pointer;
+}
+.day-toggle-on { background: var(--berry); border-color: var(--berry); color: #fff; }
+
+/* helper copy */
+.avail-helper {
+  font-size: 12px; color: var(--mauve); line-height: 1.5;
+  margin: 2px 4px 12px;
+}
+
 /* ----- add pickup / slot edit ----- */
 
 .btn-add-pickup {

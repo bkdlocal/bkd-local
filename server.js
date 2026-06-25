@@ -732,7 +732,10 @@ async function recomputeProfileStatus(baker) {
   const slots = await airtable.list('Availability', {
     filterByFormula: `LOWER(TRIM({Baker Email})) = '${escapeFormula(baker.email)}'`
   });
-  const hasAvailability = slots.length > 0;
+  // Availability is satisfied by either a legacy date slot OR the new
+  // Default Pickup Days model.
+  const hasDefaultDays = String(f['Default Pickup Days'] || '').trim() !== '';
+  const hasAvailability = slots.length > 0 || hasDefaultDays;
 
   const next = (bioOk && cityOk && hasSellableItem && hasAvailability) ? 'Live' : 'Incomplete';
   if (next !== current) {
@@ -750,31 +753,105 @@ async function safeRecomputeProfileStatus(baker) {
   }
 }
 
+// ── New availability model helpers (default pickup days + exceptions) ──
+const WEEKDAY_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function isoWeekdayAbbr(iso) {
+  const [y, m, d] = String(iso).split('-').map(Number);
+  return WEEKDAY_ABBR[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+}
+function parseDefaultDays(v) {
+  // Accepts a comma string ("Thu,Fri") or an array; returns canonical Sun..Sat order.
+  const parts = Array.isArray(v) ? v : String(v || '').split(',');
+  const set = new Set(parts.map(s => String(s).trim()).filter(s => WEEKDAY_ABBR.includes(s)));
+  return WEEKDAY_ABBR.filter(d => set.has(d));
+}
+function todayISOUtc() { return new Date().toISOString().slice(0, 10); }
+function addDaysISO(iso, n) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
 app.get('/api/availability', requireAuth, async (req, res, next) => {
   try {
     const baker = await currentBaker(req);
-    const [slots, orders] = await Promise.all([
-      loadSlotsForBaker(baker),
-      loadOrdersForBaker(baker)
-    ]);
-    const enriched = slots
-      .filter(s => s.date)
-      .map(s => ({ ...s, slotsFilled: countFilled(orders, s.date) }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-    res.json({ acceptingOrders: baker.acceptingOrders, slots: enriched });
+    const defaultPickupDays = parseDefaultDays(baker.defaultPickupDays);
+    const accepting = baker.profileStatus !== 'Paused';
+    if (MODE === 'mock') {
+      return res.json({ acceptingOrders: accepting, defaultPickupDays, exceptions: [], exceptionsSupported: true, slots: [] });
+    }
+    const slots = await loadSlotsForBaker(baker);
+    const exceptions = slots.filter(s => s.isException && s.date).map(s => String(s.date).slice(0, 10));
+    const exceptionsSupported = (await airtable.hasField('Availability', 'Is Exception')) !== false;
+    res.json({ acceptingOrders: accepting, defaultPickupDays, exceptions, exceptionsSupported, slots: [] });
   } catch (e) { next(e); }
 });
 
+// Save the baker's default weekly pickup days (comma string on Baker Profiles).
+app.post('/api/availability/default-days', requireAuth, async (req, res, next) => {
+  try {
+    const baker = await currentBaker(req);
+    const days = parseDefaultDays(req.body && req.body.days);
+    if (MODE === 'mock') {
+      mock.baker.defaultPickupDays = days.join(',');
+      return res.json({ ok: true, defaultPickupDays: days });
+    }
+    await airtable.update('Baker Profiles', baker.id, { 'Default Pickup Days': days.join(',') });
+    await safeRecomputeProfileStatus(baker);
+    res.json({ ok: true, defaultPickupDays: days });
+  } catch (e) { next(e); }
+});
+
+// Mark/unmark a specific date as an exception (a day off) on a default day.
+// Stored as an Availability row with Is Exception = true.
+app.post('/api/availability/exception', requireAuth, async (req, res, next) => {
+  try {
+    const baker = await currentBaker(req);
+    const date = String(req.body && req.body.date || '').slice(0, 10);
+    const isException = !!(req.body && req.body.isException);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'A valid date is required.' });
+    if (MODE === 'mock') return res.json({ ok: true, exceptionsSupported: true });
+
+    const supported = await airtable.hasField('Availability', 'Is Exception');
+    if (supported === false) {
+      console.warn('[availability] "Is Exception" field missing on Availability table; exception not saved. Cowork must add it.');
+      return res.json({ ok: false, exceptionsSupported: false, error: 'Add an "Is Exception" checkbox field to the Availability table to enable days off.' });
+    }
+    const rows = await airtable.list('Availability', {
+      filterByFormula: `LOWER(TRIM({Baker Email})) = '${escapeFormula(baker.email)}'`
+    });
+    const sameDate = rows.filter(r => String(r.fields['Available Date'] || '').slice(0, 10) === date);
+    if (isException) {
+      if (!sameDate.some(r => r.fields['Is Exception'] === true)) {
+        await airtable.create('Availability', { 'Baker Email': baker.email, 'Available Date': date, 'Is Exception': true });
+      }
+    } else {
+      for (const r of sameDate.filter(r => r.fields['Is Exception'] === true)) {
+        await airtable.delete('Availability', r.id);
+      }
+    }
+    res.json({ ok: true, exceptionsSupported: true });
+  } catch (e) { next(e); }
+});
+
+// "Taking orders" away toggle. Off => Profile Status "Paused" (removed from the
+// directory, which only shows Live). On => clear the pause and recompute to
+// Live/Incomplete based on profile completeness.
 app.post('/api/availability/accepting', requireAuth, async (req, res, next) => {
   try {
     const baker = await currentBaker(req);
-    const value = !!req.body?.acceptingOrders;
+    const value = !!(req.body && req.body.acceptingOrders);
     if (MODE === 'mock') {
       mock.setAcceptingOrders(value);
-    } else {
-      await airtable.update('Baker Profiles', baker.id, { 'Accepting Orders': value });
+      return res.json({ ok: true, acceptingOrders: value });
     }
-    res.json({ ok: true, acceptingOrders: value });
+    if (value) {
+      // Clear Paused first so recompute (which preserves Paused) can re-evaluate.
+      await airtable.update('Baker Profiles', baker.id, { 'Accepting Orders': true, 'Profile Status': 'Incomplete' });
+      const status = await safeRecomputeProfileStatus(baker);
+      return res.json({ ok: true, acceptingOrders: true, profileStatus: status });
+    }
+    await airtable.update('Baker Profiles', baker.id, { 'Accepting Orders': false, 'Profile Status': 'Paused' });
+    res.json({ ok: true, acceptingOrders: false, profileStatus: 'Paused' });
   } catch (e) { next(e); }
 });
 
@@ -1517,6 +1594,63 @@ async function availableBakerKeys(dateFilter) {
   return { emails, ids };
 }
 
+// Index Availability rows once: per-baker exception dates and legacy open-slot
+// dates, keyed by email. Default pickup days live on the baker profile.
+async function loadAvailabilityIndex() {
+  const exceptionsByEmail = new Map();
+  const legacyOpenByEmail = new Map();
+  const add = (map, email, d) => {
+    if (!map.has(email)) map.set(email, new Set());
+    map.get(email).add(d);
+  };
+  if (MODE === 'mock') {
+    const email = normEmail(mock.baker.email);
+    mock.getSlots().forEach(s => {
+      const d = String(s.date || '').slice(0, 10);
+      if (!d) return;
+      if (s.isException) add(exceptionsByEmail, email, d);
+      else if (slotHasOpenCapacity(s.slotsAvailable, s.slotsFilled)) add(legacyOpenByEmail, email, d);
+    });
+    return { exceptionsByEmail, legacyOpenByEmail };
+  }
+  const rows = await airtable.list('Availability');
+  for (const rec of rows) {
+    const d = String(rec.fields['Available Date'] || '').slice(0, 10);
+    if (!d) continue;
+    const email = normEmail(rec.fields['Baker Email']);
+    if (!email) continue;
+    if (rec.fields['Is Exception'] === true) add(exceptionsByEmail, email, d);
+    else if (slotHasOpenCapacity(rec.fields['Slots Available'], rec.fields['Slots Filled'])) add(legacyOpenByEmail, email, d);
+  }
+  return { exceptionsByEmail, legacyOpenByEmail };
+}
+
+// Enumerate the candidate dates for a date filter (single date, or inclusive range capped at 90 days).
+function enumerateFilterDates(dateFilter) {
+  if (dateFilter.mode === 'range') {
+    const out = [];
+    let d = dateFilter.from;
+    for (let i = 0; i < 90 && d <= dateFilter.to; i++) { out.push(d); d = addDaysISO(d, 1); }
+    return out;
+  }
+  return [dateFilter.date];
+}
+
+// A baker is available on a date if it's one of their default pickup days and
+// not an exception, OR they have a legacy open-capacity slot that day (also not
+// an exception).
+function bakerAvailableOnDates(baker, dates, idx) {
+  const exc = idx.exceptionsByEmail.get(baker.email);
+  const legacy = idx.legacyOpenByEmail.get(baker.email);
+  const days = baker.defaultPickupDays || [];
+  return dates.some(d => {
+    if (exc && exc.has(d)) return false;
+    if (days.includes(isoWeekdayAbbr(d))) return true;
+    if (legacy && legacy.has(d)) return true;
+    return false;
+  });
+}
+
 // Logged-in customers get a Messages/Orders/Profile top nav (with unread badge).
 async function viewerFor(req) {
   if (!req.customer) return null;
@@ -1560,8 +1694,9 @@ app.get('/bakers', async (req, res, next) => {
 
     let bakers = all;
     if (dateFilter) {
-      const { emails, ids } = await availableBakerKeys(dateFilter);
-      bakers = bakers.filter(b => emails.has(b.email) || ids.has(b.id));
+      const idx = await loadAvailabilityIndex();
+      const dates = enumerateFilterDates(dateFilter);
+      bakers = bakers.filter(b => bakerAvailableOnDates(b, dates, idx));
     }
     if (q) {
       const ql = q.toLowerCase();
@@ -1609,13 +1744,19 @@ async function loadMenuItemForBaker(baker, itemId) {
 }
 
 // Pickup dates this baker has open capacity on, today or later (string compare).
+// Open pickup dates for ordering = the baker's Default Pickup Days for the next
+// ~90 days (minus exception days) PLUS any legacy open-capacity date slots,
+// always excluding exception dates.
 async function loadBakerOpenDates(baker) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayISOUtc();
   const out = new Set();
+  const exceptions = new Set();
   if (MODE === 'mock') {
     mock.getSlots().forEach(s => {
       const d = String(s.date || '').slice(0, 10);
-      if (d && d >= today && slotHasOpenCapacity(s.slotsAvailable, s.slotsFilled)) out.add(d);
+      if (!d) return;
+      if (s.isException) exceptions.add(d);
+      else if (d >= today && slotHasOpenCapacity(s.slotsAvailable, s.slotsFilled)) out.add(d);
     });
   } else {
     const rows = await airtable.list('Availability', {
@@ -1623,9 +1764,19 @@ async function loadBakerOpenDates(baker) {
     });
     rows.forEach(rec => {
       const d = String(rec.fields['Available Date'] || '').slice(0, 10);
-      if (d && d >= today && slotHasOpenCapacity(rec.fields['Slots Available'], rec.fields['Slots Filled'])) out.add(d);
+      if (!d) return;
+      if (rec.fields['Is Exception'] === true) exceptions.add(d);
+      else if (d >= today && slotHasOpenCapacity(rec.fields['Slots Available'], rec.fields['Slots Filled'])) out.add(d);
     });
   }
+  const days = parseDefaultDays(baker.defaultPickupDays);
+  if (days.length) {
+    for (let i = 0; i <= 90; i++) {
+      const d = addDaysISO(today, i);
+      if (days.includes(isoWeekdayAbbr(d)) && !exceptions.has(d)) out.add(d);
+    }
+  }
+  exceptions.forEach(d => out.delete(d));
   return [...out].sort();
 }
 

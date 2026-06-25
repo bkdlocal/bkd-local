@@ -29,13 +29,14 @@ function formatSlotDate(iso) {
   };
 }
 
+const DOW_ABBR = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
 async function renderAvailability(state = {}) {
   const today = todayISO();
   const { year: ty, month: tm } = parseISO(today);
 
   const viewYear = state.viewYear ?? ty;
   const viewMonth = state.viewMonth ?? tm;
-  const selectedDate = state.selectedDate || null;
 
   let availability;
   try {
@@ -44,15 +45,17 @@ async function renderAvailability(state = {}) {
     return renderAvailabilityError(e.message);
   }
 
-  const slotsByDate = new Map();
-  availability.slots.forEach(s => slotsByDate.set(s.date, s));
+  // Keep the working copy in Router state so toggles repaint instantly.
+  if (!state.hydrated) {
+    state.defaultDays = Array.isArray(availability.defaultPickupDays) ? [...availability.defaultPickupDays] : [];
+    state.exceptions = new Set(Array.isArray(availability.exceptions) ? availability.exceptions : []);
+    state.accepting = !!availability.acceptingOrders;
+    state.exceptionsSupported = availability.exceptionsSupported !== false;
+    state.hydrated = true;
+    Router.state.availability = state;
+  }
 
-  const calendar = buildCalendar(viewYear, viewMonth, today, slotsByDate, selectedDate);
-  const selectedSlot = selectedDate ? slotsByDate.get(selectedDate) : null;
-
-  const upcoming = availability.slots
-    .filter(s => s.date >= today)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const calendar = buildCalendar(viewYear, viewMonth, today, state.defaultDays, state.exceptions);
 
   return `
     <div class="screen">
@@ -66,11 +69,12 @@ async function renderAvailability(state = {}) {
       </div>
 
       <div class="scroll-content">
-        ${renderAcceptingCard(availability.acceptingOrders)}
+        ${renderAcceptingCard(state.accepting)}
+        ${renderDayToggles(state.defaultDays)}
+        <div class="avail-helper">These are your regular pickup days. Tap any highlighted date on the calendar to mark it as unavailable, for vacations, sick days, or anything that comes up.</div>
         ${renderCalendarCard(calendar, viewYear, viewMonth)}
-        ${renderLegend()}
-        ${renderActionCard(selectedDate, selectedSlot, today)}
-        ${renderUpcoming(upcoming)}
+        ${renderExceptionLegend()}
+        ${state.exceptionsSupported ? '' : '<div class="avail-helper" style="color:var(--berry);">Days off can\'t be saved yet. Ask Cowork to add an "Is Exception" field to the Availability table.</div>'}
       </div>
 
       ${renderBottomNav('availability')}
@@ -78,22 +82,41 @@ async function renderAvailability(state = {}) {
   `;
 }
 
-function buildCalendar(year, month, today, slotsByDate, selectedDate) {
+function renderDayToggles(selectedDays) {
+  const set = new Set(selectedDays || []);
+  return `
+    <div class="avail-card">
+      <div class="day-toggle-label">Default pickup days</div>
+      <div class="day-toggle-row">
+        ${DOW_ABBR.map(d => `
+          <button type="button"
+            class="day-toggle ${set.has(d) ? 'day-toggle-on' : ''}"
+            data-action="availability:toggleDay" data-day="${d}"
+            aria-pressed="${set.has(d)}">${d}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
+
+function buildCalendar(year, month, today, defaultDays, exceptions) {
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const dayset = new Set(defaultDays || []);
   const cells = [];
 
   for (let i = 0; i < firstWeekday; i++) cells.push({ blank: true });
 
   for (let day = 1; day <= daysInMonth; day++) {
     const iso = isoDate(year, month, day);
+    const isDefaultDay = dayset.has(DOW_ABBR[new Date(year, month, day).getDay()]);
     cells.push({
       day,
       iso,
       isPast: iso < today,
       isToday: iso === today,
-      isSelected: iso === selectedDate,
-      hasSlot: slotsByDate.has(iso)
+      isDefaultDay,
+      isException: exceptions && exceptions.has(iso)
     });
   }
   return cells;
@@ -105,9 +128,7 @@ function renderAcceptingCard(accepting) {
       <div class="toggle-row">
         <div class="toggle-text">
           <div class="toggle-title">Taking orders</div>
-          <div class="toggle-sub">${accepting
-            ? 'You appear in the customer directory.'
-            : 'Your profile is hidden from customers.'}</div>
+          <div class="toggle-sub">Turn off to pause all pickups temporarily.</div>
         </div>
         <button
           type="button"
@@ -148,104 +169,29 @@ function renderCalDay(cell) {
   if (cell.blank) return `<div class="cal-day cal-blank"></div>`;
   const classes = ['cal-day'];
   if (cell.isPast) classes.push('cal-past');
-  else if (cell.isSelected) classes.push('cal-selected');
-  else if (cell.hasSlot) classes.push('cal-slot');
-  else classes.push('cal-available');
+  else if (cell.isException) classes.push('cal-exception');
+  else if (cell.isDefaultDay) classes.push('cal-default');
+  else classes.push('cal-plain');
   if (cell.isToday) classes.push('cal-today');
 
-  const interactive = !cell.isPast;
+  // Only future default-day dates are tappable (to toggle an exception).
+  const interactive = !cell.isPast && (cell.isDefaultDay || cell.isException);
   return `
     <button
       type="button"
       class="${classes.join(' ')}"
-      ${interactive ? `data-action="availability:selectDate" data-date="${cell.iso}"` : 'disabled'}
+      ${interactive ? `data-action="availability:toggleException" data-date="${cell.iso}"` : 'disabled'}
     >${cell.day}</button>
   `;
 }
 
-function renderLegend() {
+function renderExceptionLegend() {
   return `
     <div class="cal-legend">
-      <div class="legend-item"><span class="legend-dot legend-selected"></span>Selected</div>
-      <div class="legend-item"><span class="legend-dot legend-available"></span>Available</div>
+      <div class="legend-item"><span class="legend-dot legend-default"></span>Available</div>
+      <div class="legend-item"><span class="legend-dot legend-exception"></span>Day off</div>
       <div class="legend-item"><span class="legend-dot legend-past"></span>Past</div>
     </div>
-  `;
-}
-
-function renderActionCard(selectedDate, selectedSlot, today) {
-  if (!selectedDate) {
-    return `
-      <button type="button" class="btn-add-pickup" disabled>+ Add Pickup Date</button>
-      <div class="action-hint">Tap a future date on the calendar to begin.</div>
-    `;
-  }
-  const { weekdayFull } = formatSlotDate(selectedDate);
-  const { month, day } = parseISO(selectedDate);
-  const dateLabel = `${MONTH_NAMES[month]} ${day}`;
-
-  if (selectedSlot) {
-    return `
-      <div class="avail-card slot-edit-card">
-        <div class="slot-edit-title">${weekdayFull}, ${dateLabel}</div>
-        <div class="slot-edit-sub">Editing pickup slots</div>
-        <div class="slot-stepper">
-          <button type="button" class="step-btn" data-action="availability:editSlot" data-id="${selectedSlot.id}" data-delta="-1">−</button>
-          <div class="step-value">${selectedSlot.slotsAvailable}</div>
-          <button type="button" class="step-btn" data-action="availability:editSlot" data-id="${selectedSlot.id}" data-delta="+1">+</button>
-          <div class="step-label">slot${selectedSlot.slotsAvailable === 1 ? '' : 's'}</div>
-        </div>
-        <button type="button" class="btn-remove-slot" data-action="availability:removeSlot" data-id="${selectedSlot.id}">Remove this pickup date</button>
-      </div>
-    `;
-  }
-  return `
-    <button type="button" class="btn-add-pickup" data-action="availability:addSlot" data-date="${selectedDate}">
-      + Add Pickup Date
-    </button>
-    <div class="action-hint">${weekdayFull}, ${dateLabel}</div>
-  `;
-}
-
-function renderUpcoming(slots) {
-  if (slots.length === 0) {
-    return `
-      <div class="upcoming-section">
-        <div class="sub-label">Upcoming Pickups</div>
-        <div class="upcoming-empty">No upcoming pickup dates yet. Tap a date above to add one.</div>
-      </div>
-    `;
-  }
-  return `
-    <div class="upcoming-section">
-      <div class="sub-label">Upcoming Pickups</div>
-      ${slots.map(renderUpcomingRow).join('')}
-    </div>
-  `;
-}
-
-function renderUpcomingRow(slot) {
-  const { day, month, weekdayFull } = formatSlotDate(slot.date);
-  const isFull = slot.slotsFilled >= slot.slotsAvailable;
-  const badgeClass = isFull ? 'badge-full' : 'badge-open';
-  const badgeText = isFull ? 'Full' : 'Open';
-  return `
-    <button
-      type="button"
-      class="upcoming-row"
-      data-action="availability:selectDate"
-      data-date="${slot.date}"
-    >
-      <div class="upcoming-date">
-        <div class="upcoming-day">${day}</div>
-        <div class="upcoming-month">${month}</div>
-      </div>
-      <div class="upcoming-info">
-        <div class="upcoming-title">${weekdayFull} pickup</div>
-        <div class="upcoming-sub">${slot.slotsFilled} of ${slot.slotsAvailable} confirmed</div>
-      </div>
-      <span class="slot-badge ${badgeClass}">${badgeText}</span>
-    </button>
   `;
 }
 
