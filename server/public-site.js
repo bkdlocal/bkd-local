@@ -140,7 +140,7 @@ function searchBlock(filters) {
     </div>
     <div class="date-fields">
       <div class="df-single">
-        <input type="date" name="date" value="${esc(f.date || '')}" aria-label="Date you need your bakes">
+        <input type="${f.date ? 'date' : 'text'}" name="date" value="${esc(f.date || '')}" placeholder="When do you need your order?" onfocus="this.type='date'; try { this.showPicker && this.showPicker(); } catch (e) {}" onblur="if (!this.value) this.type='text';" aria-label="When do you need your order?">
       </div>
       <div class="df-range">
         <input type="date" name="from" value="${esc(f.from || '')}" aria-label="From date">

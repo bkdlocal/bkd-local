@@ -135,6 +135,7 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 .to-sep { color: var(--mauve); font-size: 14px; }
 
 .search-block input[type="date"],
+.search-block input[type="text"],
 .search-block input[type="search"] {
   font-family: inherit; font-size: 15px; color: var(--ink);
   border: 1px solid var(--mauve-soft); border-radius: 999px;
@@ -148,7 +149,8 @@ main { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 .search-secondary { display: flex; align-items: center; gap: 10px; }
 .search-icon { color: var(--berry); display: flex; flex-shrink: 0; }
 .search-secondary input[type="search"] { flex: 1; }
-.search-secondary input::placeholder { color: var(--mauve-soft); }
+/* Date + search placeholders share the same Mauve so the two fields match. */
+.search-block input::placeholder { color: #7A5068; }
 .search-secondary .btn { flex-shrink: 0; }
 
 /* Sections */
