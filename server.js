@@ -1537,7 +1537,7 @@ app.get('/order/new', async (req, res, next) => {
     const item = await loadMenuItemForBaker(baker, String(req.query.item || ''));
     if (!item) return res.status(404).type('html').send(publicSite.renderNotFound());
     const availableDates = await loadBakerOpenDates(baker);
-    res.type('html').send(orderFlow.renderOrderFlow({ baker, item, availableDates, serviceFee: SERVICE_FEE }));
+    res.type('html').send(orderFlow.renderOrderFlow({ baker, item, availableDates, serviceFee: SERVICE_FEE, viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
 });
 
@@ -1674,7 +1674,7 @@ app.get('/customer/profile', async (req, res, next) => {
     const rec = await customers.findByEmail(req.customer.email);
     if (!rec) return res.redirect('/login');
     const orders = await enrichOrdersWithBaker(await loadCustomerOrders(req.customer.email));
-    res.type('html').send(customerSite.renderCustomerProfile({ customer: customerPublic(rec), orders }));
+    res.type('html').send(customerSite.renderCustomerProfile({ customer: customerPublic(rec), orders, viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
 });
 
@@ -1682,7 +1682,7 @@ app.get('/customer/orders', async (req, res, next) => {
   try {
     if (!requireCustomerPage(req, res)) return;
     const orders = await enrichOrdersWithBaker(await loadCustomerOrders(req.customer.email));
-    res.type('html').send(customerSite.renderPastOrders({ orders }));
+    res.type('html').send(customerSite.renderPastOrders({ orders, viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
 });
 
@@ -1692,7 +1692,7 @@ app.get('/customer/orders/:orderId', async (req, res, next) => {
     const order = await loadCustomerOrder(req.customer.email, req.params.orderId);
     if (!order) return res.status(404).type('html').send(publicSite.renderNotFound());
     const baker = await loadBakerLite(order.bakerEmail);
-    res.type('html').send(customerSite.renderOrderStatus({ order, baker }));
+    res.type('html').send(customerSite.renderOrderStatus({ order, baker, viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
 });
 
@@ -2006,7 +2006,7 @@ app.get('/customer/messages', async (req, res, next) => {
     }
 
     const rec = await customers.findByEmail(email);
-    res.type('html').send(customerSite.renderCustomerMessages({ threads, active, customer: customerPublic(rec) }));
+    res.type('html').send(customerSite.renderCustomerMessages({ threads, active, customer: customerPublic(rec), viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
 });
 

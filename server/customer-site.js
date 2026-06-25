@@ -59,7 +59,7 @@ function statusBadge(rawStatus) {
 function avatarBlock(customer) {
   const inner = customer.profilePhotoUrl
     ? `<img src="${esc(customer.profilePhotoUrl)}" alt="Your photo">`
-    : `<span class="avatar-initial">${esc((customer.firstName || '?').charAt(0).toUpperCase())}</span>`;
+    : `<span class="avatar-placeholder"><i class="ti ti-user" aria-hidden="true"></i></span>`;
   return `<div class="cust-avatar" id="avatar">
       ${inner}
       <span class="avatar-edit">Edit</span>
@@ -84,7 +84,7 @@ function compactOrderCard(o) {
     </a>`;
 }
 
-function renderCustomerProfile({ customer, orders }) {
+function renderCustomerProfile({ customer, orders, viewer }) {
   const last3 = (orders || []).slice(0, 3);
   const count = Number(customer.ratingCount) || 0;
   const ratingBlock = count > 0
@@ -130,7 +130,7 @@ function renderCustomerProfile({ customer, orders }) {
   </div>
   <script src="/js/customer-profile.js"></script>`;
 
-  return layout({ title: 'Your profile · Bkd Local', description: '', body });
+  return layout({ title: 'Your profile · Bkd Local', description: '', body, viewer });
 }
 
 // ── 6.7 Past Orders ──────────────────────────────────────────────────────────
@@ -157,7 +157,7 @@ function orderRow(o) {
     </div>`;
 }
 
-function renderPastOrders({ orders }) {
+function renderPastOrders({ orders, viewer }) {
   const body = `
   <div class="cust-page">
     ${custTabs('orders')}
@@ -166,7 +166,7 @@ function renderPastOrders({ orders }) {
       ? `<div class="order-list">${orders.map(orderRow).join('')}</div>`
       : '<p class="muted">No orders yet. <a href="/bakers">Find a baker</a> to place your first request.</p>'}
   </div>`;
-  return layout({ title: 'Your orders · Bkd Local', description: '', body });
+  return layout({ title: 'Your orders · Bkd Local', description: '', body, viewer });
 }
 
 // ── 6.6 Order Status ─────────────────────────────────────────────────────────
@@ -219,7 +219,7 @@ function ratingPrompt(o) {
   </section>`;
 }
 
-function renderOrderStatus({ order, baker }) {
+function renderOrderStatus({ order, baker, viewer }) {
   const info = statusInfo(order.status);
   const showAddress = addressVisible(order.status);
   const pickup = showAddress
@@ -251,7 +251,7 @@ function renderOrderStatus({ order, baker }) {
   </div>
   <script src="/js/order-status.js"></script>`;
 
-  return layout({ title: `${order.menuItem} · Bkd Local`, description: '', body });
+  return layout({ title: `${order.menuItem} · Bkd Local`, description: '', body, viewer });
 }
 
 // ── 6.5 Messaging ────────────────────────────────────────────────────────────
@@ -278,7 +278,7 @@ function threadListItem(t, activeId) {
     </a>`;
 }
 
-function renderCustomerMessages({ threads, active, customer }) {
+function renderCustomerMessages({ threads, active, customer, viewer }) {
   const list = threads.length
     ? threads.map(t => threadListItem(t, active && active.threadId)).join('')
     : '<p class="muted empty-threads">No conversations yet.</p>';
@@ -318,7 +318,7 @@ function renderCustomerMessages({ threads, active, customer }) {
   ${active ? jsonData('msg-data', { threadId: active.threadId, bakerId: active.baker.id, bakerEmail: active.baker.email, isCustomQuote: !!active.isCustomQuote, customerEmail: customer.email }) : ''}
   <script src="/js/customer-messages.js"></script>`;
 
-  return layout({ title: 'Messages · Bkd Local', description: '', body });
+  return layout({ title: 'Messages · Bkd Local', description: '', body, viewer });
 }
 
 module.exports = {

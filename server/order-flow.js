@@ -23,7 +23,7 @@ function addonRow(a, i) {
   </div>`;
 }
 
-function renderOrderFlow({ baker, item, availableDates, serviceFee }) {
+function renderOrderFlow({ baker, item, availableDates, serviceFee, viewer }) {
   const soldPerLabel = item.soldPer ? `per ${esc(item.soldPer)}` : '';
   const qtyUnit = item.soldPer ? esc(item.soldPer) : 'order';
   const minQty = Number(item.minimumQuantity) > 0 ? Math.floor(item.minimumQuantity) : 1;
@@ -107,7 +107,8 @@ function renderOrderFlow({ baker, item, availableDates, serviceFee }) {
   return layout({
     title: `Request from ${baker.businessName} · Bkd Local`,
     description: `Send an order request to ${baker.businessName} on Bkd Local.`,
-    body
+    body,
+    viewer
   });
 }
 
