@@ -87,7 +87,6 @@ function renderJoin({ stripeReady, error }) {
         <span class="join-badge">Recommended</span>
         <h2>Charter</h2>
         <div class="join-price">$97 <span>one-time</span></div>
-        <div class="join-subprice">+ $19/month</div>
         <ul class="join-feats">
           <li>Lifetime 5% fee rate (Standard is 8%)</li>
           <li>Founding Baker badge on your profile</li>
