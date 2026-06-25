@@ -127,11 +127,22 @@ body {
 }
 /* Premium Magic Pricing box: gradient border (#D4C8E0 -> berry) instead of the
    solid berry border, while keeping the same ombre fill as the other boxes. */
-.nav-box--magic {
-  border: 1.5px solid transparent;
-  background:
-    linear-gradient(160deg, #D4C8E0 0%, #F2C4D8 100%) padding-box,
-    linear-gradient(135deg, #D4C8E0 0%, #C2557E 100%) border-box;
+/* Premium Magic Pricing box. Targeted by #id + !important so the shared
+   .nav-box / .nav-icon / .nav-label styles can never win. */
+#navMagicBox {
+  background: linear-gradient(160deg, #2C1A24 0%, #7A5068 50%, #C2557E 100%) !important;
+  border: 1.5px solid #C2557E !important;
+  border-radius: 10px !important;
+}
+#navMagicBox .nav-icon { color: #ffffff !important; }
+#navMagicBox .nav-label { color: #ffffff !important; }
+.nav-magic-spark { position: absolute; line-height: 1; pointer-events: none; z-index: 1; }
+.nav-magic-spark-tr { top: 3px; right: 18px; font-size: 9px; color: #F2C4D8; }
+.nav-magic-spark-bl { bottom: 3px; left: 4px; font-size: 6px; color: #D4C8E0; }
+.nav-magic-free {
+  position: absolute; top: 2px; right: 2px; z-index: 2;
+  background: #C2557E; color: #ffffff; font-size: 6px; font-weight: 500;
+  line-height: 1; padding: 2px 4px; border-radius: 999px;
 }
 /* "Free for Beta" pill on the Magic Pricing Calculator page */
 .pmb-free-badge {
