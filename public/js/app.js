@@ -96,27 +96,45 @@ async function copyToClipboard(text) {
 }
 
 // ── Bake Timer helpers ──
-function bakeTimerElapsed(s) {
-  let ms = Number(s.timerElapsedMs) || 0;
-  if (s.timerRunning && s.timerStartTs) ms += Date.now() - s.timerStartTs;
-  return ms;
-}
+// A single self-clearing 1s ticker updates the display while running; it looks
+// the element + persisted state up each tick so it survives re-renders, screen
+// lock, and (via DOMContentLoaded re-arm below) page refresh.
 function stopBakeTimerTick() {
   if (window.__bakeTimerInterval) {
     clearInterval(window.__bakeTimerInterval);
     window.__bakeTimerInterval = null;
   }
 }
-function startBakeTimerTick() {
-  stopBakeTimerTick();
-  // Look the element up each tick so it survives screen re-renders; self-clears
-  // once the timer is no longer running.
+function ensureBakeTimerTick() {
+  if (window.__bakeTimerInterval) return;
   window.__bakeTimerInterval = setInterval(() => {
-    const s = Router.state.priceMyBakes;
-    if (!s || !s.timerRunning) { stopBakeTimerTick(); return; }
+    const t = readBakeTimer();
+    if (t.state !== 'running') { stopBakeTimerTick(); return; }
     const el = document.getElementById('bakeTimerDisplay');
-    if (el) el.textContent = formatHMS(bakeTimerElapsed(s));
+    if (el) el.textContent = formatHMS(bakeElapsedMs(t));
   }, 1000);
+}
+// Hourly-rate message from the live Profit Summary price input.
+function bakeTimerResultMessage(elapsedMs) {
+  const input = document.getElementById('pmb-listed-price');
+  const price = input ? parseFloat(input.value) : NaN;
+  const hours = elapsedMs / 3600000;
+  if (price > 0 && hours > 0) {
+    return `At this pace you make approximately $${Math.round(price / hours)} per hour.`;
+  }
+  return 'Enter your listed price in the Profit Summary below to see your hourly rate.';
+}
+function paintBakeTimer() {
+  const t = readBakeTimer();
+  const disp = document.getElementById('bakeTimerDisplay');
+  const btn = document.getElementById('bakeTimerToggle');
+  const res = document.getElementById('bakeTimerResult');
+  if (disp) disp.textContent = formatHMS(bakeElapsedMs(t));
+  if (btn) btn.textContent = t.state === 'running' ? 'Pause' : (t.state === 'paused' ? 'Resume' : 'Start Timer');
+  if (res) {
+    if (t.result) { res.textContent = t.result; res.hidden = false; }
+    else { res.textContent = ''; res.hidden = true; }
+  }
 }
 
 const Actions = {
@@ -327,51 +345,29 @@ const Actions = {
   },
 
   // ── Bake Timer (foreground only) ──
-  // DOM is updated directly (no re-render) so the running clock and the typed
-  // price/scroll position aren't disturbed.
+  // localStorage is the source of truth; DOM is updated directly (no re-render)
+  // so the running clock, the typed price, and scroll position aren't disturbed.
+  // Toggle cycles idle -> running (Start) -> paused (Pause) -> running (Resume).
   'pmb:timerToggle': () => {
-    const s = Router.state.priceMyBakes;
-    if (!s) return;
-    const disp = document.getElementById('bakeTimerDisplay');
-    const btn = document.getElementById('bakeTimerToggle');
-    const res = document.getElementById('bakeTimerResult');
-    if (!s.timerRunning) {
-      s.timerRunning = true;
-      s.timerStartTs = Date.now();
-      s.timerResult = null;
-      if (btn) btn.textContent = 'Stop Timer';
-      if (res) { res.textContent = ''; res.hidden = true; }
-      startBakeTimerTick();
-    } else {
-      s.timerElapsedMs = bakeTimerElapsed(s);
-      s.timerRunning = false;
-      s.timerStartTs = null;
+    const t = readBakeTimer();
+    if (t.state === 'running') {
+      // Pause: freeze accumulated elapsed, compute the hourly-rate result.
+      const elapsed = bakeElapsedMs(t);
+      writeBakeTimer({ state: 'paused', startTs: null, accumMs: elapsed, result: bakeTimerResultMessage(elapsed) });
       stopBakeTimerTick();
-      if (disp) disp.textContent = formatHMS(s.timerElapsedMs);
-      if (btn) btn.textContent = 'Start Timer';
-      const price = Number(s.listedPrice) || 0;
-      const hours = s.timerElapsedMs / 3600000;
-      s.timerResult = (price > 0 && hours > 0)
-        ? `You made approximately $${(price / hours).toFixed(2)} per hour on this batch`
-        : 'Add your item price above to see your hourly rate';
-      if (res) { res.textContent = s.timerResult; res.hidden = false; }
+    } else {
+      // Start (from idle) or Resume (from paused): keep accumulated time, set a
+      // fresh start timestamp, clear the result while timing continues.
+      writeBakeTimer({ state: 'running', startTs: Date.now(), accumMs: Number(t.accumMs) || 0, result: null });
+      ensureBakeTimerTick();
     }
+    paintBakeTimer();
   },
 
   'pmb:timerReset': () => {
-    const s = Router.state.priceMyBakes;
-    if (!s) return;
     stopBakeTimerTick();
-    s.timerRunning = false;
-    s.timerElapsedMs = 0;
-    s.timerStartTs = null;
-    s.timerResult = null;
-    const disp = document.getElementById('bakeTimerDisplay');
-    const btn = document.getElementById('bakeTimerToggle');
-    const res = document.getElementById('bakeTimerResult');
-    if (disp) disp.textContent = '00:00:00';
-    if (btn) btn.textContent = 'Start Timer';
-    if (res) { res.textContent = ''; res.hidden = true; }
+    writeBakeTimer({ state: 'idle', startTs: null, accumMs: 0, result: null });
+    paintBakeTimer();
   },
 
   'pmb:addIngredient': ({ id }) => {
@@ -840,6 +836,8 @@ Api.onUnauthorized = () => {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Resume live ticking if a bake timer was left running before a refresh.
+  if (readBakeTimer().state === 'running') ensureBakeTimerTick();
   try {
     await Api.getSession();
     Router.navigate('home');

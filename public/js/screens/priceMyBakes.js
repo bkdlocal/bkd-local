@@ -1,10 +1,10 @@
 // Price My Bakes — recipe + profitability calculator
 
 const PMB_STORES = [
-  { id: 'walmart', name: 'Walmart',    dot: '#0071CE' },
-  { id: 'kroger',  name: 'Kroger',     dot: '#E11B22' },
-  { id: 'aldi',    name: 'Aldi',       dot: '#1B7F3A' },
-  { id: 'sams',    name: "Sam's Club", dot: '#0E5BBA' }
+  { id: 'walmart', name: 'Walmart',    dot: '#C2557E' },
+  { id: 'kroger',  name: 'Kroger',     dot: '#C2557E' },
+  { id: 'aldi',    name: 'Aldi',       dot: '#C2557E' },
+  { id: 'sams',    name: "Sam's Club", dot: '#C2557E' }
 ];
 
 const PMB = {
@@ -163,13 +163,14 @@ async function renderPriceMyBakes(state = {}) {
   `;
 }
 
-// Bake Timer: time a batch, then (on stop) show $/hour from the listed price.
-// Display + result are rendered from state so they persist until Reset.
+// Bake Timer: idle / running / paused, persisted in localStorage with wall-clock
+// elapsed (survives screen lock + refresh). Display, button label, and the
+// hourly-rate result are all derived from the persisted timer so a re-render
+// always shows the correct state.
 function renderPmbTimerCard(state) {
-  const running = !!state.timerRunning;
-  let elapsedMs = Number(state.timerElapsedMs) || 0;
-  if (running && state.timerStartTs) elapsedMs += Date.now() - state.timerStartTs;
-  const result = state.timerResult || '';
+  const t = readBakeTimer();
+  const label = t.state === 'running' ? 'Pause' : (t.state === 'paused' ? 'Resume' : 'Start Timer');
+  const result = t.result || '';
   return `
     <div class="pmb-timer-card">
       <span class="pmb-spark pmb-spark-1" aria-hidden="true">✦</span>
@@ -177,9 +178,9 @@ function renderPmbTimerCard(state) {
       <span class="pmb-spark pmb-spark-3" aria-hidden="true">✦</span>
       <div class="pmb-timer-label">✦ Bake Timer</div>
       <div class="pmb-timer-sub">Time this batch to find out what you make per hour</div>
-      <div class="pmb-timer-display" id="bakeTimerDisplay">${formatHMS(elapsedMs)}</div>
+      <div class="pmb-timer-display" id="bakeTimerDisplay">${formatHMS(bakeElapsedMs(t))}</div>
       <div class="pmb-timer-actions">
-        <button type="button" class="pmb-timer-start" id="bakeTimerToggle" data-action="pmb:timerToggle">${running ? 'Stop Timer' : 'Start Timer'}</button>
+        <button type="button" class="pmb-timer-start" id="bakeTimerToggle" data-action="pmb:timerToggle">${label}</button>
         <button type="button" class="pmb-timer-reset" data-action="pmb:timerReset">Reset</button>
       </div>
       <div class="pmb-timer-result" id="bakeTimerResult"${result ? '' : ' hidden'}>${escapePmbHtml(result)}</div>

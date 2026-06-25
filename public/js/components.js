@@ -78,6 +78,35 @@ function formatHMS(ms) {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
+// ── Bake Timer persistence (localStorage is the source of truth) ──
+// Shape: { state: 'idle'|'running'|'paused', startTs: number|null,
+//          accumMs: number, result: string|null }
+// Elapsed is wall-clock based so it stays correct across screen lock/refresh.
+const BAKE_TIMER_KEY = 'bkdBakeTimer';
+function readBakeTimer() {
+  try {
+    const raw = localStorage.getItem(BAKE_TIMER_KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      return {
+        state: o.state === 'running' || o.state === 'paused' ? o.state : 'idle',
+        startTs: Number(o.startTs) || null,
+        accumMs: Number(o.accumMs) || 0,
+        result: o.result || null
+      };
+    }
+  } catch (_) {}
+  return { state: 'idle', startTs: null, accumMs: 0, result: null };
+}
+function writeBakeTimer(t) {
+  try { localStorage.setItem(BAKE_TIMER_KEY, JSON.stringify(t)); } catch (_) {}
+}
+function bakeElapsedMs(t) {
+  let ms = Number(t.accumMs) || 0;
+  if (t.state === 'running' && t.startTs) ms += Date.now() - t.startTs;
+  return Math.max(0, ms);
+}
+
 function formatDate(value, style = 'long') {
   if (!value) return null;
   const d = new Date(value);
