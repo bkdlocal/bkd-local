@@ -114,13 +114,20 @@ function ensureBakeTimerTick() {
     if (el) el.textContent = formatHMS(bakeElapsedMs(t));
   }, 1000);
 }
-// Hourly-rate message from the live Profit Summary price input.
+// Hourly-rate message from the Profit Summary "Your listed price" field.
+// Reads the live DOM input first; falls back to the in-memory state value
+// (kept in sync by onPmbListedPriceInput) so the rate still computes even if
+// the input element can't be found at the moment of pause.
 function bakeTimerResultMessage(elapsedMs) {
+  let price = NaN;
   const input = document.getElementById('pmb-listed-price');
-  const price = input ? parseFloat(input.value) : NaN;
+  if (input && input.value !== '') price = parseFloat(input.value);
+  if (!(price > 0) && typeof Router !== 'undefined' && Router.state && Router.state.priceMyBakes) {
+    price = Number(Router.state.priceMyBakes.listedPrice);
+  }
   const hours = elapsedMs / 3600000;
   if (price > 0 && hours > 0) {
-    return `At this pace you make approximately $${Math.round(price / hours)} per hour.`;
+    return `At this pace you make approximately $${Math.round(price / hours).toLocaleString('en-US')} per hour`;
   }
   return 'Enter your listed price in the Profit Summary below to see your hourly rate.';
 }

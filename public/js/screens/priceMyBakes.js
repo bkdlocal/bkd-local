@@ -172,7 +172,7 @@ function renderPmbTimerCard(state) {
   const label = t.state === 'running' ? 'Pause' : (t.state === 'paused' ? 'Resume' : 'Start Timer');
   const result = t.result || '';
   return `
-    <div class="pmb-timer-card">
+    <div class="pmb-timer-card" style="margin-bottom:24px;">
       <span class="pmb-spark pmb-spark-1" aria-hidden="true">✦</span>
       <span class="pmb-spark pmb-spark-2" aria-hidden="true">✦</span>
       <span class="pmb-spark pmb-spark-3" aria-hidden="true">✦</span>
