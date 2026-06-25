@@ -153,7 +153,7 @@ const Actions = {
     if (!s) return;
     s.productType = value;
     const t = PRODUCT_TYPES.find(x => x.id === value);
-    if (t && (!s.emoji || s.emoji === '🧁')) s.emoji = t.emoji;
+    if (t && !s.emoji) s.emoji = t.emoji;
     if (value === 'cupcakes' && s.soldBy === 'individual') s.soldBy = null;
     // Cakes have no "Sold by" picker (sized/tiered instead); they're sold per cake.
     if (value === 'cakes') s.soldBy = 'individual';
@@ -729,7 +729,7 @@ async function renderPlaceholder(state, screenId) {
   }
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="top-nav">
         <div>
           <div class="greeting-sub">Coming soon</div>

@@ -14,90 +14,59 @@ async function renderHome() {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
 
-      <div class="top-nav">
-        <div>
-          <div class="greeting-sub">${getGreeting()}</div>
-          <div class="greeting-name">${baker.firstName} ✨</div>
-        </div>
-        <div class="avatar">${baker.avatarLetter}</div>
-      </div>
+      <div class="scroll-content home-scroll">
+        <section class="dash-hero">
+          <div class="dash-eyebrow">Your bakery dashboard</div>
+          <h1 class="dash-greeting">${getGreeting()}, <span class="dash-name">${baker.firstName}</span>.</h1>
+          <p class="dash-subtitle">Here's how your bakery is doing this month.</p>
 
-      <div class="scroll-content">
-        <div class="stats-row">
-          <div class="stat-card accent">
-            <div class="stat-value">${stats.newOrders}</div>
-            <div class="stat-label">New Orders</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">${stats.completed}</div>
-            <div class="stat-label">Completed</div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-value">${stats.rating != null ? `${stats.rating} ⭐` : '—'}</div>
-            <div class="stat-label">Rating</div>
-          </div>
-        </div>
-
-        <div class="earnings-banner">
-          <div class="earnings-emoji">💰</div>
-          <div style="flex:1;">
-            <div class="earnings-main">${earnings.period} earnings</div>
-            <div class="earnings-row">
-              <div>
-                <div class="earnings-gross">${formatMoney(earnings.gross)}</div>
-                <div class="earnings-sub-label">Total orders</div>
-              </div>
-              <div class="earnings-divider"></div>
-              <div>
-                <div class="earnings-net">${net != null ? formatMoney(net, { decimals: 2 }) : '—'}</div>
-                <div class="earnings-sub-label">In your pocket</div>
-              </div>
+          <div class="dash-stats">
+            <div class="dash-stat">
+              <div class="dash-stat-value">${formatMoney(earnings.gross)}</div>
+              <div class="dash-stat-label">${earnings.period} earnings</div>
+            </div>
+            <div class="dash-stat">
+              <div class="dash-stat-value">${net != null ? formatMoney(net, { decimals: 2 }) : '—'}</div>
+              <div class="dash-stat-label">In your pocket</div>
+            </div>
+            <div class="dash-stat">
+              <div class="dash-stat-value">${earnings.count}</div>
+              <div class="dash-stat-label">Orders placed</div>
             </div>
           </div>
-        </div>
+        </section>
 
         <button type="button" class="share-profile-btn" data-action="home:shareProfile" data-value="${shareUrl}">
-          <span class="share-profile-icon">🔗</span> Share my profile
+          <i class="ti ti-link" aria-hidden="true"></i> Share my profile
         </button>
 
-        <div class="section-header" style="margin-top:4px;">
-          <div class="section-title-sm">Your Bakery</div>
-        </div>
-        <div class="quick-grid">
-          <button class="quick-card" type="button" data-screen="profile">
-            <div class="quick-icon qi-pink">🧁</div>
-            <div>
-              <div class="quick-card-label">My Profile</div>
-              <div class="quick-card-sub">Edit & preview</div>
-            </div>
+        <div class="dash-grid">
+          <button class="dash-card" type="button" data-screen="profile">
+            <div class="dash-card-icon"><i class="ti ti-user" aria-hidden="true"></i></div>
+            <div class="dash-card-title">My profile</div>
+            <div class="dash-card-sub">Edit &amp; preview</div>
           </button>
-          <button class="quick-card" type="button" data-screen="availability">
-            <div class="quick-icon qi-lav">📅</div>
-            <div>
-              <div class="quick-card-label">Availability</div>
-              <div class="quick-card-sub">Set pickup dates</div>
-            </div>
+          <button class="dash-card" type="button" data-screen="availability">
+            <div class="dash-card-icon"><i class="ti ti-calendar" aria-hidden="true"></i></div>
+            <div class="dash-card-title">Availability</div>
+            <div class="dash-card-sub">Set pickup dates</div>
           </button>
-          <button class="quick-card" type="button" data-screen="menu">
-            <div class="quick-icon qi-plum">🍽️</div>
-            <div>
-              <div class="quick-card-label">My Menu</div>
-              <div class="quick-card-sub">${menuItems.length} item${menuItems.length === 1 ? '' : 's'}</div>
-            </div>
+          <button class="dash-card" type="button" data-screen="menu">
+            <div class="dash-card-icon"><i class="ti ti-clipboard-list" aria-hidden="true"></i></div>
+            <div class="dash-card-title">My menu</div>
+            <div class="dash-card-sub">${menuItems.length} item${menuItems.length === 1 ? '' : 's'}</div>
           </button>
-          <button class="quick-card" type="button" data-screen="reviews">
-            <div class="quick-icon qi-rose">⭐</div>
-            <div>
-              <div class="quick-card-label">My Reviews</div>
-              <div class="quick-card-sub">${stats.reviewCount} review${stats.reviewCount === 1 ? '' : 's'}</div>
-            </div>
+          <button class="dash-card" type="button" data-screen="reviews">
+            <div class="dash-card-icon"><i class="ti ti-star" aria-hidden="true"></i></div>
+            <div class="dash-card-title">My reviews</div>
+            <div class="dash-card-sub">${stats.reviewCount} review${stats.reviewCount === 1 ? '' : 's'}</div>
           </button>
         </div>
 
         <div class="section-header">
-          <div class="section-title-sm">Recent Orders</div>
+          <div class="section-title-sm">Recent orders</div>
           <div class="section-link" data-screen="orders">See all</div>
         </div>
         ${orders.map(o => `
@@ -105,7 +74,7 @@ async function renderHome() {
             <div class="order-dot ${o.status === 'new' ? 'dot-new' : 'dot-done'}"></div>
             <div class="order-info">
               <div class="order-name">${o.customerName}</div>
-              <div class="order-detail">${o.item} · ${o.pickupDate}</div>
+              <div class="order-detail">${o.item} · ${o.pickupDate}${o.reviewRating ? ` · ${o.reviewRating}<i class="ti ti-star order-detail-star" aria-hidden="true"></i>` : ''}</div>
             </div>
             <div class="order-amount ${o.status === 'complete' ? 'done' : ''}">${formatMoney(o.amount)}</div>
           </div>

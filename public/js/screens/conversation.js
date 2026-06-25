@@ -21,7 +21,7 @@ async function renderConversation(state = {}) {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
 
       <div class="conv-header">
         <button class="detail-back" type="button" data-action="nav:back" aria-label="Back">‹</button>
@@ -113,7 +113,7 @@ function renderSmartReplyCard(suggestion, loading, lastFromCustomer, id) {
   if (loading) {
     return `
       <div class="smart-reply-card">
-        <div class="smart-reply-label">✨ Smart Reply — from your FAQ answers</div>
+        <div class="smart-reply-label"><i class="ti ti-sparkles" aria-hidden="true"></i> Smart Reply — from your FAQ answers</div>
         <div class="smart-reply-bubble smart-reply-loading">Thinking…</div>
       </div>
     `;
@@ -121,7 +121,7 @@ function renderSmartReplyCard(suggestion, loading, lastFromCustomer, id) {
   if (suggestion) {
     return `
       <div class="smart-reply-card">
-        <div class="smart-reply-label">✨ Smart Reply — from your FAQ answers</div>
+        <div class="smart-reply-label"><i class="ti ti-sparkles" aria-hidden="true"></i> Smart Reply — from your FAQ answers</div>
         <button type="button" class="smart-reply-bubble" data-action="conversation:useSuggestion">
           ${escapeHtml(suggestion)}
         </button>
@@ -131,7 +131,7 @@ function renderSmartReplyCard(suggestion, loading, lastFromCustomer, id) {
   }
   return `
     <div class="smart-reply-card">
-      <div class="smart-reply-label">✨ Smart Reply — from your FAQ answers</div>
+      <div class="smart-reply-label"><i class="ti ti-sparkles" aria-hidden="true"></i> Smart Reply — from your FAQ answers</div>
       <button type="button" class="smart-reply-fetch" data-action="conversation:fetchSuggestion" data-id="${id}">
         Suggest a reply
       </button>
@@ -169,7 +169,7 @@ function escapeAttr(s) {
 function renderConversationError(message) {
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="conv-header">
         <button class="detail-back" type="button" data-action="nav:back" aria-label="Back">‹</button>
         <div class="conv-header-info">

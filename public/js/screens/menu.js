@@ -8,7 +8,7 @@ async function renderMenu() {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
 
       <div class="menu-header">
         <div>
@@ -52,7 +52,7 @@ function renderMenuCard(item) {
   const cover = item.coverPhoto || (Array.isArray(item.photos) ? item.photos[0] : null) || null;
   const thumb = cover
     ? `<div class="menu-emoji menu-cover" style="background-image:url('${escapeMenuHtml(cover)}');background-size:cover;background-position:center;width:44px;height:44px;border-radius:10px;"></div>`
-    : `<div class="menu-emoji">${item.emoji || '🧁'}</div>`;
+    : `<div class="menu-emoji"><i class="ti ti-cake" aria-hidden="true"></i></div>`;
 
   return `
     <div class="menu-card ${item.available ? '' : 'menu-card-unavailable'}">
@@ -79,7 +79,7 @@ function renderMenuCard(item) {
 function renderMenuEmpty() {
   return `
     <div class="menu-empty">
-      <div class="menu-empty-emoji">🍰</div>
+      <div class="menu-empty-emoji"><i class="ti ti-cake" aria-hidden="true"></i></div>
       <div class="menu-empty-title">Build your menu</div>
       <div class="menu-empty-sub">Add the products you offer — sugar cookies, cakes, cupcakes, macarons, or drop cookies. Customers see what's on your menu when they browse.</div>
       <button type="button" class="menu-empty-cta" data-action="menu:add">+ Add your first item</button>
@@ -90,7 +90,7 @@ function renderMenuEmpty() {
 function renderMenuError(message) {
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="top-nav">
         <div>
           <div class="greeting-sub">Something went wrong</div>

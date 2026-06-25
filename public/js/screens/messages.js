@@ -10,7 +10,7 @@ async function renderMessages() {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
 
       <div class="top-nav">
         <div>
@@ -58,7 +58,7 @@ function renderConversationRow(c) {
 function renderMessagesEmpty(note) {
   return `
     <div class="messages-empty">
-      <div class="messages-empty-emoji">💬</div>
+      <div class="messages-empty-emoji"><i class="ti ti-message-circle" aria-hidden="true"></i></div>
       <div class="messages-empty-title">No messages yet</div>
       <div class="messages-empty-sub">
         ${note || "When a customer messages you, you'll see it here."}
@@ -70,7 +70,7 @@ function renderMessagesEmpty(note) {
 function renderMessagesError(message) {
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="top-nav">
         <div>
           <div class="greeting-sub">Something went wrong</div>

@@ -1,7 +1,7 @@
 const FAQ_GROUPS = [
   {
     label: 'About your bakes',
-    icon: '🧁',
+    icon: '<i class="ti ti-cake" aria-hidden="true"></i>',
     items: [
       { key: 'specialties',  label: 'Specialties',   hint: "What are you known for? What flavors people come back for?" },
       { key: 'customOrders', label: 'Custom orders', hint: "Do you take custom requests? Anything you'd rather not do?" },
@@ -10,7 +10,7 @@ const FAQ_GROUPS = [
   },
   {
     label: 'Pickup & timing',
-    icon: '📍',
+    icon: '<i class="ti ti-map-pin" aria-hidden="true"></i>',
     items: [
       { key: 'locationPickup', label: 'Location & pickup', hint: "How does pickup work at your place? Any heads-up for customers?" },
       { key: 'delivery',       label: 'Delivery',          hint: "Do you deliver? Any radius, fees, minimums?" },
@@ -21,7 +21,7 @@ const FAQ_GROUPS = [
   },
   {
     label: 'Dietary & allergens',
-    icon: '🌿',
+    icon: '<i class="ti ti-leaf" aria-hidden="true"></i>',
     items: [
       { key: 'glutenFree',   label: 'Gluten-free',   hint: "Can you make GF items? Any cross-contamination notes?" },
       { key: 'otherDietary', label: 'Other dietary', hint: "Vegan, dairy-free, egg-free, nut-free — what can you do?" },
@@ -30,7 +30,7 @@ const FAQ_GROUPS = [
   },
   {
     label: 'Payment & cancellation',
-    icon: '💳',
+    icon: '<i class="ti ti-credit-card" aria-hidden="true"></i>',
     items: [
       { key: 'paymentTiming',      label: 'Payment timing',      hint: "When do you collect payment? At booking, pickup, deposit?" },
       { key: 'paymentMethods',     label: 'Payment methods',     hint: "Card via Bkd Local, Venmo, cash — what works?" },
@@ -39,7 +39,7 @@ const FAQ_GROUPS = [
   },
   {
     label: 'Tastings & samples',
-    icon: '🍰',
+    icon: '<i class="ti ti-cake" aria-hidden="true"></i>',
     items: [
       { key: 'samples',  label: 'Samples',  hint: "Do you offer samples? For big orders or weddings?" },
       { key: 'tastings', label: 'Tastings', hint: "How tastings work, fees, what's included." }
@@ -47,7 +47,7 @@ const FAQ_GROUPS = [
   },
   {
     label: 'Communication',
-    icon: '💬',
+    icon: '<i class="ti ti-message-circle" aria-hidden="true"></i>',
     items: [
       { key: 'contactResponse', label: 'Contact & response', hint: "How customers should reach you and how fast you typically reply." },
       { key: 'anythingElse',    label: 'Anything else',      hint: "Anything else customers should know about working with you?" }
@@ -70,7 +70,7 @@ async function renderProfile() {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
 
       <div class="pmb-top-nav">
         <button class="pmb-back" type="button" data-screen="home" aria-label="Back">‹</button>
@@ -78,7 +78,7 @@ async function renderProfile() {
           <div class="greeting-sub">${isLive ? 'Live in the directory' : `${completion.faq} of ${ALL_FAQ_ITEMS.length} answered`}</div>
           <div class="greeting-name">My Profile</div>
         </div>
-        <button class="profile-reset" type="button" data-action="profile:resetOnboarding" title="Clear all FAQ answers (mock only)">↻</button>
+        <button class="profile-reset" type="button" data-action="profile:resetOnboarding" title="Clear all FAQ answers (mock only)"><i class="ti ti-refresh" aria-hidden="true"></i></button>
       </div>
 
       <div class="scroll-content profile-scroll">
@@ -128,7 +128,7 @@ function computeCompletion(baker) {
 
 function renderProfileHero(baker, isLive) {
   const tierBadge = baker.tier
-    ? `<span class="profile-tier ${baker.tier.toLowerCase()}">${baker.tier === 'Charter' ? '⭐ ' : ''}${baker.tier}</span>`
+    ? `<span class="profile-tier ${baker.tier.toLowerCase()}">${baker.tier === 'Charter' ? '★ ' : ''}${baker.tier}</span>`
     : '';
   const statusPill = isLive
     ? '<span class="profile-status live">● Live</span>'
@@ -169,7 +169,7 @@ function renderOnboardingBanner(baker, completion, canGoLive) {
       <div class="profile-banner-top">
         <div class="profile-banner-pct">${pct}%</div>
         <div class="profile-banner-text">
-          <div class="profile-banner-title">${canGoLive ? "Profile complete ✨" : "Let's get you live"}</div>
+          <div class="profile-banner-title">${canGoLive ? "Profile complete" : "Let's get you live"}</div>
           <div class="profile-banner-sub">${message}</div>
         </div>
       </div>
@@ -339,7 +339,7 @@ function renderProfileFooter(baker, isLive, canGoLive) {
     <div class="profile-footer">
       ${!isLive && canGoLive ? `
         <button class="profile-go-live" type="button" data-action="profile:goLive">
-          🎉 Go Live
+          Go Live
         </button>
         <div class="profile-footer-hint">Your profile will show up in the directory.</div>
       ` : ''}

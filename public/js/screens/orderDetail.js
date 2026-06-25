@@ -17,7 +17,7 @@ async function renderOrderDetail(state = {}) {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
 
       <div class="detail-header">
         <button class="detail-back" type="button" data-action="nav:back" aria-label="Back">‹</button>
@@ -125,7 +125,7 @@ function renderReviewSection(order) {
     return `
       <div class="detail-section">
         <div class="detail-section-title">Review</div>
-        <div class="review-stars-inline">${'⭐'.repeat(order.reviewRating)}</div>
+        <div class="review-stars-inline">${'★'.repeat(order.reviewRating)}</div>
         <div class="review-text-inline">"${order.review}"</div>
       </div>
     `;
@@ -174,7 +174,7 @@ function renderDetailActions(order, firstName) {
 function renderDetailError(message) {
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="detail-header">
         <button class="detail-back" type="button" data-action="nav:back" aria-label="Back">‹</button>
         <div class="detail-title-block">

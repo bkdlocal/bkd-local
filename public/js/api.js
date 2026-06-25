@@ -149,7 +149,7 @@ const Api = {
     const orders = await this.getOrders();
     const gross = orders.reduce((s, o) => s + (Number(o.amount) || 0), 0);
     const now = new Date();
-    return { period: now.toLocaleString('en-US', { month: 'long' }), gross };
+    return { period: now.toLocaleString('en-US', { month: 'long' }), gross, count: orders.length };
   },
 
   async getRecentOrders() {
@@ -161,8 +161,9 @@ const Api = {
       customerName: o.customerName,
       item: o.item,
       pickupDate: o.status === 'complete'
-        ? (o.reviewRating ? '⭐'.repeat(o.reviewRating) : 'Picked up')
+        ? 'Picked up'
         : (formatDate(o.pickupDate, 'short') || ''),
+      reviewRating: o.status === 'complete' && o.reviewRating ? o.reviewRating : null,
       amount: o.amount,
       status: o.status
     }));

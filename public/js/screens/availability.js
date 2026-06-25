@@ -56,7 +56,7 @@ async function renderAvailability(state = {}) {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
 
       <div class="top-nav">
         <div>
@@ -252,7 +252,7 @@ function renderUpcomingRow(slot) {
 function renderAvailabilityError(message) {
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="top-nav">
         <div>
           <div class="greeting-sub">Something went wrong</div>

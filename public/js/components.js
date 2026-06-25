@@ -1,16 +1,19 @@
 const NAV_ITEMS = [
-  { id: 'home',         icon: '🏠', label: 'Home' },
-  { id: 'orders',       icon: '📦', label: 'Orders' },
-  { id: 'availability', icon: '📅', label: 'Availability' },
-  { id: 'messages',     icon: '💬', label: 'Messages' },
-  { id: 'profile',      icon: '👤', label: 'Profile' }
+  { id: 'home',         icon: 'ti-home',           label: 'Home' },
+  { id: 'orders',       icon: 'ti-package',        label: 'Orders' },
+  { id: 'availability', icon: 'ti-calendar',       label: 'Availability' },
+  { id: 'messages',     icon: 'ti-message-circle', label: 'Messages' },
+  { id: 'profile',      icon: 'ti-user',           label: 'Profile' }
 ];
 
-function renderStatusBar() {
+// Logo bar shown at the top of every baker-app screen: "bkd" in Berry Rose,
+// "local" in Deep Plum, then a Tabler map-pin in Berry Rose. Matches the
+// customer-facing wordmark.
+function renderLogoBar() {
   return `
-    <div class="status-bar">
-      <span class="status-time">9:41</span>
-      <span class="status-icons">●●● WiFi 🔋</span>
+    <div class="app-logobar">
+      <span class="app-logo"><span class="app-logo-bkd">bkd</span><span class="app-logo-local">local</span></span>
+      <i class="ti ti-map-pin app-logo-pin" aria-hidden="true"></i>
     </div>
   `;
 }
@@ -20,13 +23,14 @@ function renderBottomNav(activeId) {
   return `
     <nav class="bottom-nav">
       ${NAV_ITEMS.map(item => {
-        const badge = (item.id === 'messages' && unread > 0)
-          ? `<span class="nav-badge">${unread > 9 ? '9+' : unread}</span>`
+        const dot = (item.id === 'messages' && unread > 0)
+          ? `<span class="nav-dot" aria-label="Unread messages"></span>`
           : '';
         return `
-        <button class="nav-item" type="button" data-screen="${item.id}">
-          <div class="nav-icon">${item.icon}${badge}</div>
-          <div class="nav-label ${item.id === activeId ? 'nav-active' : ''}">${item.label}</div>
+        <button class="nav-box" type="button" data-screen="${item.id}"${item.id === activeId ? ' aria-current="page"' : ''}>
+          ${dot}
+          <i class="ti ${item.icon} nav-icon" aria-hidden="true"></i>
+          <span class="nav-label">${item.label}</span>
         </button>
       `;
       }).join('')}
@@ -55,9 +59,9 @@ function formatDate(value, style = 'long') {
 
 function getGreeting(date = new Date()) {
   const hour = date.getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'Good morning';   // before noon
+  if (hour < 17) return 'Good afternoon';  // noon–5pm
+  return 'Good evening';                    // after 5pm
 }
 
 const AVATAR_PALETTES = [

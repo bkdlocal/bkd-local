@@ -131,12 +131,12 @@ async function renderPriceMyBakes(state = {}) {
 
   const typeLabel = menuItem && menuItem.productType ? productTypeLabel(menuItem.productType) : '';
   const subtext = menuItem
-    ? (typeLabel ? `${menuItem.emoji || ''} ${menuItem.name} · ${typeLabel}` : `${menuItem.emoji || ''} ${menuItem.name}`)
+    ? (typeLabel ? `${menuItem.name} · ${typeLabel}` : `${menuItem.name}`)
     : (state.prefillName ? state.prefillName : 'Recipe & profit');
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="pmb-top-nav">
         <button type="button" class="pmb-back" data-action="nav:back" aria-label="Back">‹</button>
         <div class="pmb-top-text">
@@ -262,7 +262,7 @@ function renderPmbIngredientsSection(state) {
     <div class="pmb-section">
       <div class="pmb-section-label">Ingredients</div>
       <div class="pmb-search-wrap">
-        <span class="pmb-search-icon">🔍</span>
+        <span class="pmb-search-icon"><i class="ti ti-search" aria-hidden="true"></i></span>
         <input type="text" class="pmb-search" id="pmb-search"
           placeholder="Search ingredients..."
           oninput="onPmbSearchInput(event)"
@@ -295,7 +295,7 @@ function renderPmbIngredientRow(state, ingredient, idx) {
 
   return `
     <div class="pmb-ing-row">
-      <div class="pmb-ing-emoji">${item.emoji || '🧁'}${isCustom ? '<span class="pmb-star-badge">⭐</span>' : ''}</div>
+      <div class="pmb-ing-emoji"><i class="ti ti-cake" aria-hidden="true"></i>${isCustom ? '<span class="pmb-star-badge"><i class="ti ti-star" aria-hidden="true"></i></span>' : ''}</div>
       <div class="pmb-ing-body">
         <div class="pmb-ing-top">
           <div class="pmb-ing-name">${escapePmbHtml(item.name)}</div>
@@ -501,9 +501,9 @@ function onPmbSearchInput(e) {
       : `${fmt(effectivePackagePrice(item, state.store))} / ${item.packageLabel}`;
     return `
       <button type="button" class="pmb-search-result" data-pmb-add="${escapePmbHtml(item.id)}">
-        <span class="pmb-search-emoji">${item.emoji || '🧁'}</span>
+        <span class="pmb-search-emoji"><i class="ti ti-cake" aria-hidden="true"></i></span>
         <span class="pmb-search-info">
-          <span class="pmb-search-name">${escapePmbHtml(item.name)}${r.isCustom ? ' ⭐' : ''}</span>
+          <span class="pmb-search-name">${escapePmbHtml(item.name)}${r.isCustom ? ' <i class="ti ti-star" aria-hidden="true"></i>' : ''}</span>
           <span class="pmb-search-meta">${escapePmbHtml(r.isCustom ? 'Your custom ingredient' : item.category)}</span>
         </span>
         <span class="pmb-search-price">${priceLabel}</span>

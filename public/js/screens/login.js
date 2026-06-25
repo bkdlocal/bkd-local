@@ -7,7 +7,7 @@ async function renderLogin() {
 
   return `
     <div class="screen login-screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="login-body">
         <div class="login-card">
           <div class="login-hero"><img src="/img/bkdlocal-logo.svg" alt="bkd local"></div>
@@ -58,7 +58,7 @@ async function renderLogin() {
 async function renderForgotPassword() {
   return `
     <div class="screen login-screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="login-body">
         <div class="login-card" id="forgotCard">
           <div class="login-hero"><img src="/img/bkdlocal-logo.svg" alt="bkd local"></div>

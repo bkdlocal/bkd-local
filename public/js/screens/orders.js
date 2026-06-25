@@ -25,7 +25,7 @@ async function renderOrders(state = {}) {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
 
       <div class="top-nav">
         <div>

@@ -1,11 +1,11 @@
 // Menu Item — add/edit form for a baker's product catalog entry
 
 const PRODUCT_TYPES = [
-  { id: 'sugarCookies', label: 'Decorated Sugar Cookies', emoji: '🍪' },
-  { id: 'cakes',        label: 'Cakes',                   emoji: '🎂' },
-  { id: 'cupcakes',     label: 'Cupcakes',                emoji: '🧁' },
-  { id: 'macarons',     label: 'Macarons',                emoji: '🌸' },
-  { id: 'dropCookies',  label: 'Drop Cookies / Bars / Brownies', emoji: '🍫' }
+  { id: 'sugarCookies', label: 'Decorated Sugar Cookies', icon: 'ti-cookie' },
+  { id: 'cakes',        label: 'Cakes',                   icon: 'ti-cake' },
+  { id: 'cupcakes',     label: 'Cupcakes',                icon: 'ti-cake' },
+  { id: 'macarons',     label: 'Macarons',                icon: 'ti-cake' },
+  { id: 'dropCookies',  label: 'Drop Cookies / Bars / Brownies', icon: 'ti-cookie' }
 ];
 
 const OCCASION_TAGS = [
@@ -67,7 +67,7 @@ async function renderMenuItem(state = {}) {
   if (!state.initialized) {
     if (existing) {
       state.name = existing.name || '';
-      state.emoji = existing.emoji || '🧁';
+      state.emoji = existing.emoji || '';
       state.price = existing.price ?? 0;
       state.productType = existing.productType || null;
       state.soldBy = existing.soldBy || null;
@@ -80,7 +80,7 @@ async function renderMenuItem(state = {}) {
       state.photos = Array.isArray(existing.photos) ? [...existing.photos] : [];
     } else {
       state.name = '';
-      state.emoji = '🧁';
+      state.emoji = '';
       state.price = 0;
       state.productType = null;
       state.soldBy = null;
@@ -102,7 +102,7 @@ async function renderMenuItem(state = {}) {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="pmb-top-nav">
         <button type="button" class="pmb-back" data-action="menuItem:cancel" aria-label="Back">‹</button>
         <div class="pmb-top-text">
@@ -202,7 +202,7 @@ function renderMiTypePicker(state) {
           <button type="button"
             class="mi-type-card ${state.productType === t.id ? 'mi-type-selected' : ''}"
             data-action="menuItem:setType" data-value="${t.id}">
-            <div class="mi-type-emoji">${t.emoji}</div>
+            <div class="mi-type-emoji"><i class="ti ${t.icon}" aria-hidden="true"></i></div>
             <div class="mi-type-label">${t.label}</div>
           </button>
         `).join('')}
@@ -425,7 +425,7 @@ function renderMiFooter(state, isNew) {
 function renderMenuItemError(message) {
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="pmb-top-nav">
         <button type="button" class="pmb-back" data-action="menuItem:cancel" aria-label="Back">‹</button>
         <div class="pmb-top-text">

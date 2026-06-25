@@ -10,7 +10,7 @@ async function renderReviews() {
 
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
 
       <div class="pmb-top-nav">
         <button class="pmb-back" type="button" data-action="nav:back" aria-label="Back">‹</button>
@@ -116,7 +116,7 @@ function renderReviewCard(r) {
 function renderReviewsEmpty() {
   return `
     <div class="reviews-empty">
-      <div class="reviews-empty-emoji">⭐</div>
+      <div class="reviews-empty-emoji"><i class="ti ti-star" aria-hidden="true"></i></div>
       <div class="reviews-empty-title">No reviews yet</div>
       <div class="reviews-empty-sub">
         After a customer picks up, Bkd Local sends them a review request 24 hours later. Their reviews will show up here.
@@ -128,7 +128,7 @@ function renderReviewsEmpty() {
 function renderReviewsError(message) {
   return `
     <div class="screen">
-      ${renderStatusBar()}
+      ${renderLogoBar()}
       <div class="pmb-top-nav">
         <button class="pmb-back" type="button" data-action="nav:back" aria-label="Back">‹</button>
         <div class="pmb-top-text">
