@@ -141,7 +141,7 @@ async function renderPriceMyBakes(state = {}) {
         <button type="button" class="pmb-back" data-action="nav:back" aria-label="Back">‹</button>
         <div class="pmb-top-text">
           <div class="greeting-sub">${escapePmbHtml(subtext)}</div>
-          <div class="greeting-name">Price My Bakes</div>
+          <div class="greeting-name">Know Your Worth</div>
         </div>
         <div class="pmb-top-spacer"></div>
       </div>

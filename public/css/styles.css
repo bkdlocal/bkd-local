@@ -54,13 +54,19 @@ body {
 }
 
 .app-logobar {
-  display: flex; align-items: center; gap: 6px;
+  display: flex; align-items: center; justify-content: space-between;
   padding: 10px 20px; background: var(--blush); flex-shrink: 0;
 }
+.app-logo-group { display: flex; align-items: center; gap: 6px; }
 .app-logo { font-weight: 500; font-size: 20px; letter-spacing: -0.02em; line-height: 1; }
 .app-logo-bkd { color: var(--berry); }
 .app-logo-local { color: var(--plum); }
 .app-logo-pin { color: var(--berry); font-size: 18px; line-height: 1; }
+.app-logo-profile {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--berry); display: flex; align-items: center; line-height: 1;
+}
+.app-logo-profile .ti { font-size: 22px; }
 
 .top-nav {
   background: var(--blush); padding: 6px 20px 14px;

@@ -3,17 +3,22 @@ const NAV_ITEMS = [
   { id: 'orders',       icon: 'ti-package',        label: 'Orders' },
   { id: 'availability', icon: 'ti-calendar',       label: 'Availability' },
   { id: 'messages',     icon: 'ti-message-circle', label: 'Messages' },
-  { id: 'profile',      icon: 'ti-user',           label: 'Profile' }
+  { id: 'menu',         icon: 'ti-clipboard-list', label: 'Menu' }
 ];
 
 // Logo bar shown at the top of every baker-app screen: "bkd" in Berry Rose,
-// "local" in Deep Plum, then a Tabler map-pin in Berry Rose. Matches the
-// customer-facing wordmark.
+// "local" in Deep Plum, then a Tabler map-pin in Berry Rose. A bare Berry Rose
+// user icon sits flush right and opens the baker's profile.
 function renderLogoBar() {
   return `
     <div class="app-logobar">
-      <span class="app-logo"><span class="app-logo-bkd">bkd</span><span class="app-logo-local">local</span></span>
-      <i class="ti ti-map-pin app-logo-pin" aria-hidden="true"></i>
+      <span class="app-logo-group">
+        <span class="app-logo"><span class="app-logo-bkd">bkd</span><span class="app-logo-local">local</span></span>
+        <i class="ti ti-map-pin app-logo-pin" aria-hidden="true"></i>
+      </span>
+      <button type="button" class="app-logo-profile" data-screen="profile" aria-label="Your profile">
+        <i class="ti ti-user" aria-hidden="true"></i>
+      </button>
     </div>
   `;
 }
