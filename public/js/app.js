@@ -95,6 +95,30 @@ async function copyToClipboard(text) {
   try { document.execCommand('copy'); } finally { document.body.removeChild(ta); }
 }
 
+// ── Bake Timer helpers ──
+function bakeTimerElapsed(s) {
+  let ms = Number(s.timerElapsedMs) || 0;
+  if (s.timerRunning && s.timerStartTs) ms += Date.now() - s.timerStartTs;
+  return ms;
+}
+function stopBakeTimerTick() {
+  if (window.__bakeTimerInterval) {
+    clearInterval(window.__bakeTimerInterval);
+    window.__bakeTimerInterval = null;
+  }
+}
+function startBakeTimerTick() {
+  stopBakeTimerTick();
+  // Look the element up each tick so it survives screen re-renders; self-clears
+  // once the timer is no longer running.
+  window.__bakeTimerInterval = setInterval(() => {
+    const s = Router.state.priceMyBakes;
+    if (!s || !s.timerRunning) { stopBakeTimerTick(); return; }
+    const el = document.getElementById('bakeTimerDisplay');
+    if (el) el.textContent = formatHMS(bakeTimerElapsed(s));
+  }, 1000);
+}
+
 const Actions = {
   'order:open': ({ id }) => Router.navigate('orderDetail', { orderId: id }),
 
@@ -300,6 +324,54 @@ const Actions = {
     if (!s) return;
     s.store = value;
     Router.refresh({ keepScroll: true });
+  },
+
+  // ── Bake Timer (foreground only) ──
+  // DOM is updated directly (no re-render) so the running clock and the typed
+  // price/scroll position aren't disturbed.
+  'pmb:timerToggle': () => {
+    const s = Router.state.priceMyBakes;
+    if (!s) return;
+    const disp = document.getElementById('bakeTimerDisplay');
+    const btn = document.getElementById('bakeTimerToggle');
+    const res = document.getElementById('bakeTimerResult');
+    if (!s.timerRunning) {
+      s.timerRunning = true;
+      s.timerStartTs = Date.now();
+      s.timerResult = null;
+      if (btn) btn.textContent = 'Stop Timer';
+      if (res) { res.textContent = ''; res.hidden = true; }
+      startBakeTimerTick();
+    } else {
+      s.timerElapsedMs = bakeTimerElapsed(s);
+      s.timerRunning = false;
+      s.timerStartTs = null;
+      stopBakeTimerTick();
+      if (disp) disp.textContent = formatHMS(s.timerElapsedMs);
+      if (btn) btn.textContent = 'Start Timer';
+      const price = Number(s.listedPrice) || 0;
+      const hours = s.timerElapsedMs / 3600000;
+      s.timerResult = (price > 0 && hours > 0)
+        ? `You made approximately $${(price / hours).toFixed(2)} per hour on this batch`
+        : 'Add your item price above to see your hourly rate';
+      if (res) { res.textContent = s.timerResult; res.hidden = false; }
+    }
+  },
+
+  'pmb:timerReset': () => {
+    const s = Router.state.priceMyBakes;
+    if (!s) return;
+    stopBakeTimerTick();
+    s.timerRunning = false;
+    s.timerElapsedMs = 0;
+    s.timerStartTs = null;
+    s.timerResult = null;
+    const disp = document.getElementById('bakeTimerDisplay');
+    const btn = document.getElementById('bakeTimerToggle');
+    const res = document.getElementById('bakeTimerResult');
+    if (disp) disp.textContent = '00:00:00';
+    if (btn) btn.textContent = 'Start Timer';
+    if (res) { res.textContent = ''; res.hidden = true; }
   },
 
   'pmb:addIngredient': ({ id }) => {

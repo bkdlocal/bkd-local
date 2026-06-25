@@ -151,6 +151,7 @@ async function renderPriceMyBakes(state = {}) {
         <div class="pmb-free-badge">✦ Free for Beta bakers — for a limited time</div>
       </div>
       <div class="scroll-content pmb-scroll">
+        ${renderPmbTimerCard(state)}
         ${menuItem ? renderPmbBatchSection(state) : ''}
         ${renderPmbStoreSection(state)}
         ${renderPmbIngredientsSection(state)}
@@ -158,6 +159,30 @@ async function renderPriceMyBakes(state = {}) {
         ${renderPmbSummaryCard(state, baker, menuItem)}
         ${menuItem ? renderPmbPerUnitCard(state, baker) : ''}
       </div>
+    </div>
+  `;
+}
+
+// Bake Timer: time a batch, then (on stop) show $/hour from the listed price.
+// Display + result are rendered from state so they persist until Reset.
+function renderPmbTimerCard(state) {
+  const running = !!state.timerRunning;
+  let elapsedMs = Number(state.timerElapsedMs) || 0;
+  if (running && state.timerStartTs) elapsedMs += Date.now() - state.timerStartTs;
+  const result = state.timerResult || '';
+  return `
+    <div class="pmb-timer-card">
+      <span class="pmb-spark pmb-spark-1" aria-hidden="true">✦</span>
+      <span class="pmb-spark pmb-spark-2" aria-hidden="true">✦</span>
+      <span class="pmb-spark pmb-spark-3" aria-hidden="true">✦</span>
+      <div class="pmb-timer-label">✦ Bake Timer</div>
+      <div class="pmb-timer-sub">Time this batch to find out what you make per hour</div>
+      <div class="pmb-timer-display" id="bakeTimerDisplay">${formatHMS(elapsedMs)}</div>
+      <div class="pmb-timer-actions">
+        <button type="button" class="pmb-timer-start" id="bakeTimerToggle" data-action="pmb:timerToggle">${running ? 'Stop Timer' : 'Start Timer'}</button>
+        <button type="button" class="pmb-timer-reset" data-action="pmb:timerReset">Reset</button>
+      </div>
+      <div class="pmb-timer-result" id="bakeTimerResult"${result ? '' : ' hidden'}>${escapePmbHtml(result)}</div>
     </div>
   `;
 }
