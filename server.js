@@ -858,7 +858,10 @@ const PRODUCT_TYPE_TO_AIRTABLE = {
   cakes: 'Cakes',
   cupcakes: 'Cupcakes',
   macarons: 'Macarons',
-  dropCookies: 'Drop Cookies / Bars / Brownies'
+  dropCookies: 'Drop Cookies / Bars / Brownies',
+  cinnamonRolls: 'Cinnamon Rolls',
+  pies: 'Pies',
+  breads: 'Breads'
 };
 const SOLD_PER_TO_AIRTABLE = {
   dozen: 'Dozen',

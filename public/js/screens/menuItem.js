@@ -5,7 +5,10 @@ const PRODUCT_TYPES = [
   { id: 'cakes',        label: 'Cakes',                   icon: 'ti-cake' },
   { id: 'cupcakes',     label: 'Cupcakes',                icon: 'ti-cake' },
   { id: 'macarons',     label: 'Macarons',                icon: 'ti-cake' },
-  { id: 'dropCookies',  label: 'Drop Cookies / Bars / Brownies', icon: 'ti-cookie' }
+  { id: 'dropCookies',  label: 'Drop Cookies / Bars / Brownies', icon: 'ti-cookie' },
+  { id: 'cinnamonRolls', label: 'Cinnamon Rolls',         icon: 'ti-cake' },
+  { id: 'pies',          label: 'Pies',                   icon: 'ti-cake' },
+  { id: 'breads',        label: 'Breads',                 icon: 'ti-bread' }
 ];
 
 const OCCASION_TAGS = [
@@ -218,6 +221,9 @@ function renderMiTypeDetails(state) {
     case 'cupcakes':     return renderMiCupcakes(state);
     case 'macarons':     return renderMiMacarons(state);
     case 'dropCookies':  return renderMiDropCookies(state);
+    case 'cinnamonRolls':
+    case 'pies':
+    case 'breads':       return renderMiSimpleType(state);
     default: return '';
   }
 }
@@ -403,6 +409,21 @@ function renderMiDropCookies(state) {
       <textarea class="pmb-input mi-textarea" rows="3"
         oninput="onMiFlavorsInput(event)"
         placeholder="e.g., Chocolate chip, oatmeal raisin, brown butter blondie">${escapeMiHtml(tf.flavors || '')}</textarea>
+      ${renderOccasionTags(state)}
+    </div>
+  `;
+}
+
+// Cinnamon Rolls / Pies / Breads: sold-by selector + flavors + occasions.
+function renderMiSimpleType(state) {
+  const tf = state.typeFields;
+  return `
+    <div class="pmb-section">
+      ${renderSoldByPills(state)}
+      <div class="pmb-section-label">Flavors</div>
+      <textarea class="pmb-input mi-textarea" rows="3"
+        oninput="onMiFlavorsInput(event)"
+        placeholder="e.g., Classic, seasonal, gluten free">${escapeMiHtml(tf.flavors || '')}</textarea>
       ${renderOccasionTags(state)}
     </div>
   `;

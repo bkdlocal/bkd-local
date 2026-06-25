@@ -234,7 +234,10 @@ const PRODUCT_TYPE_TO_ID = {
   'Cakes': 'cakes',
   'Cupcakes': 'cupcakes',
   'Macarons': 'macarons',
-  'Drop Cookies / Bars / Brownies': 'dropCookies'
+  'Drop Cookies / Bars / Brownies': 'dropCookies',
+  'Cinnamon Rolls': 'cinnamonRolls',
+  'Pies': 'pies',
+  'Breads': 'breads'
 };
 const SOLD_PER_TO_ID = {
   'Dozen': 'dozen',
