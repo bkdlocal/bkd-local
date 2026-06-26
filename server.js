@@ -403,6 +403,28 @@ app.post('/api/join/checkout', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Deep-link straight into Charter Stripe checkout (zero on-page clicks): create
+// the same session as POST /api/join/checkout and 302 to Stripe. Browser
+// navigation, so failures bounce to /join with a message instead of JSON.
+app.get('/join/charter', async (req, res, next) => {
+  try {
+    if (!stripeClient.configured()) return res.redirect('/join?error=payment');
+    const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const session = await stripeClient.createCheckoutSession({
+      amount: CHARTER_PRICE_CENTS,
+      productName: 'Bkd Local Charter Membership',
+      successUrl: `${base}/join/complete?session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${base}/join`,
+      metadata: { tier: 'charter' }
+    });
+    if (!session || !session.url) return res.redirect('/join?error=payment');
+    res.redirect(302, session.url);
+  } catch (e) {
+    console.error('[join/charter] checkout failed:', e.message);
+    res.redirect('/join?error=payment');
+  }
+});
+
 // Stripe success redirect lands here. Verify the session is actually paid
 // before showing the finish form; otherwise bounce back to /join.
 app.get('/join/complete', async (req, res, next) => {
