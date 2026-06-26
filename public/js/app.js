@@ -893,8 +893,12 @@ const SCREENS = {
   priceMyBakes: renderPriceMyBakes,
   reviews: renderReviews,
   profile: renderProfile,
-  faq: renderFaq
+  faq: renderFaq,
+  wizard: renderWizard
 };
+
+// Onboarding wizard action handlers live in screens/wizard.js (loaded first).
+Object.assign(Actions, window.__wizardActions || {});
 
 Api.onUnauthorized = () => {
   if (Router.current !== 'login') Router.navigate('login');
@@ -905,8 +909,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (readBakeTimer().state === 'running') ensureBakeTimerTick();
   try {
     await Api.getSession();
-    // Deep-link support for /app/faq (otherwise default to the dashboard).
-    Router.navigate(/\/faq\/?$/.test(window.location.pathname) ? 'faq' : 'home');
+    // Deep-link support for /app/faq. Otherwise: bakers who are not yet Live
+    // (and not deliberately Paused) are walked straight into the onboarding
+    // wizard, which resumes at their first incomplete step. Live bakers land on
+    // the dashboard. They can always leave the wizard via the bottom nav.
+    let landing = 'home';
+    if (/\/faq\/?$/.test(window.location.pathname)) {
+      landing = 'faq';
+    } else {
+      try {
+        const baker = await Api.getBaker();
+        if (baker && baker.profileStatus !== 'Live' && baker.profileStatus !== 'Paused') landing = 'wizard';
+      } catch (_) { /* fall back to dashboard */ }
+    }
+    Router.navigate(landing);
     setInterval(refreshUnreadBadge, 30000);
   } catch {
     // onUnauthorized already routed to login when status was 401

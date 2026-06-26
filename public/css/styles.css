@@ -3077,3 +3077,92 @@ body {
 .faq-send { background: var(--berry); color: #fff; border: 0; border-radius: 999px; padding: 0 20px; font-family: inherit; font-weight: 500; font-size: 14px; cursor: pointer; }
 .dash-faq-link { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 10px; padding: 13px; background: transparent; border: 1.5px solid var(--lavender); border-radius: 14px; color: var(--berry); font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer; }
 .dash-faq-link .ti { font-size: 17px; }
+
+/* ── Onboarding wizard ───────────────────────────────────────────────────── */
+.wiz-screen { display: flex; flex-direction: column; height: 100%; }
+.wiz-progress { padding: 18px 20px 6px; }
+.wiz-step-label {
+  font-size: 11px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--berry); margin-bottom: 8px;
+}
+.wiz-bar { height: 6px; border-radius: 999px; background: var(--warm-gray); overflow: hidden; }
+.wiz-bar-fill { height: 100%; border-radius: 999px; background: var(--berry); transition: width 0.25s ease; }
+.wiz-content { padding: 12px 20px 28px; }
+.wiz-prompt {
+  font-size: 17px; font-weight: 500; line-height: 1.5; color: var(--plum);
+  margin: 6px 0 20px;
+}
+.wiz-input {
+  width: 100%; box-sizing: border-box; font-family: inherit; font-size: 15px;
+  color: var(--plum); background: #fff; border: 1.5px solid var(--lavender);
+  border-radius: 14px; padding: 13px 16px;
+}
+.wiz-input:focus { outline: none; border-color: var(--berry); }
+.wiz-input::placeholder { color: var(--mauve); }
+.wiz-actions { display: flex; gap: 10px; margin-top: 24px; }
+.wiz-actions .wiz-next { flex: 1; }
+.wiz-back { flex: 0 0 auto; background: #fff; color: var(--berry); border: 1.5px solid var(--lavender); }
+.wiz-err { margin-top: 12px; color: var(--berry); font-size: 13px; }
+
+/* Photo step */
+.wiz-photo {
+  width: 100%; aspect-ratio: 1 / 1; max-width: 280px; margin: 0 auto;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  background: var(--petal); border: 2px dashed var(--berry); border-radius: 20px;
+  color: var(--berry); cursor: pointer; background-size: cover; background-position: center;
+  font-family: inherit;
+}
+.wiz-photo .ti { font-size: 34px; }
+.wiz-photo-hint { font-size: 13px; font-weight: 500; }
+.wiz-photo.has-photo { border-style: solid; align-items: flex-end; justify-content: flex-start; padding: 10px; }
+.wiz-photo-edit {
+  background: rgba(44, 26, 36, 0.62); color: #fff; font-size: 12px; font-weight: 500;
+  padding: 5px 12px; border-radius: 999px;
+}
+.wiz-photo.uploading { opacity: 0.6; }
+
+/* Wizard steps 3-8 */
+.wiz-textarea { resize: vertical; min-height: 120px; line-height: 1.5; }
+.wiz-row { display: flex; gap: 10px; margin-top: 12px; }
+.wiz-row .wiz-input { margin-top: 0; }
+.wiz-state { flex: 0 0 72px; text-align: center; background: var(--warm-gray); color: var(--mauve); }
+.wiz-input + .wiz-input { margin-top: 12px; }
+.wiz-field-label {
+  font-size: 12px; font-weight: 500; color: var(--mauve); margin: 18px 0 8px;
+}
+.wiz-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.wiz-days { gap: 6px; }
+.wiz-chip {
+  font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer;
+  padding: 9px 16px; border-radius: 999px; background: #fff;
+  border: 1.5px solid var(--lavender); color: var(--plum);
+}
+.wiz-days .wiz-chip { flex: 1; padding: 9px 6px; text-align: center; min-width: 0; }
+.wiz-chip.on { background: var(--berry); border-color: var(--berry); color: #fff; }
+.wiz-photo-sm { aspect-ratio: auto; height: 150px; max-width: 100%; }
+
+/* You're Live screen */
+.wiz-live { text-align: center; padding-top: 28px; display: flex; flex-direction: column; align-items: center; }
+.wiz-live-badge {
+  width: 72px; height: 72px; border-radius: 50%; background: var(--petal);
+  display: flex; align-items: center; justify-content: center; margin-bottom: 18px;
+}
+.wiz-live-badge .ti { font-size: 40px; color: var(--berry); }
+.wiz-live .wiz-prompt { text-align: center; }
+.wiz-link {
+  width: 100%; box-sizing: border-box; background: var(--blush);
+  border: 1.5px solid var(--lavender); border-radius: 12px; padding: 12px 14px;
+  font-size: 13px; color: var(--berry); word-break: break-all; margin-bottom: 16px;
+}
+.wiz-live .wiz-actions { width: 100%; }
+.wiz-done { margin-top: 12px; }
+
+/* Dashboard "You're so close" go-live nudge (not-yet-Live bakers) */
+.go-live-cta {
+  background: linear-gradient(135deg, var(--petal), #fff);
+  border: 1.5px solid var(--berry); border-radius: 18px;
+  padding: 18px 18px 20px; margin: 4px 0 18px;
+}
+.go-live-title { font-size: 18px; font-weight: 500; color: var(--plum); }
+.go-live-sub { font-size: 13px; color: var(--mauve); line-height: 1.45; margin: 6px 0 14px; }
+.go-live-btn { width: 100%; }

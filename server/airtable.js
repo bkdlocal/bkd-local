@@ -218,6 +218,7 @@ function bakerFromRecord(rec) {
     photo: (Array.isArray(f['Profile Photo']) && f['Profile Photo'][0] && f['Profile Photo'][0].url) || null,
     phone: f['Phone'] || null,
     city: f['City'] || null,
+    zip: f['Zip Code'] || null,
     tier: f['Tier'] || null,
     feeRate: parseFeeRate(f['Fee Rate']),
     pickupLocation: f['Exact Pick-up Address'] || null,

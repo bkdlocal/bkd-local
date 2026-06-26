@@ -14,11 +14,22 @@ async function renderHome() {
   const shareUrl = 'https://bkd-local-production.up.railway.app/bakers/' + baker.id +
     (baker.email ? '?ref=' + encodeURIComponent(baker.email) : '');
 
+  // Not-yet-Live bakers (not deliberately Paused) get a warm nudge back into the
+  // onboarding wizard instead of a passive, half-empty dashboard.
+  const notLive = baker.profileStatus !== 'Live' && baker.profileStatus !== 'Paused';
+  const goLiveCta = notLive ? `
+        <section class="go-live-cta">
+          <div class="go-live-title">You're so close!</div>
+          <div class="go-live-sub">Just a couple more steps and customers can find you. Let's finish this.</div>
+          <button type="button" class="btn btn-primary go-live-btn" data-action="wizard:open">Finish my profile</button>
+        </section>` : '';
+
   return `
     <div class="screen">
       ${renderLogoBar()}
 
       <div class="scroll-content home-scroll">
+        ${goLiveCta}
         <section class="dash-hero">
           <div class="dash-eyebrow">Your bakery dashboard</div>
           <h1 class="dash-greeting">${getGreeting()}, <span class="dash-name">${baker.firstName}</span>.</h1>
