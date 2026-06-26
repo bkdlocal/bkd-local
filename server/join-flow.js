@@ -158,10 +158,10 @@ function renderFinish({ tier, sessionId, email }) {
       </form>
     </div>
     <div class="auth-card join-done" id="joinDone" hidden>
-      <h1>Welcome to Bkd Local!</h1>
-      <p class="muted">You're officially part of something special. We just sent you a link to set your password and get into your dashboard. Check your email to get started, and get ready to make more money with a whole lot less hustle.</p>
+      <h1>Check your email!</h1>
+      <p class="muted">Yay, you are so close! We just sent an email to <strong id="joinDoneEmail">your inbox</strong> to confirm it is really you and help you set your password. Open it, tap the button, and choose your password. That is the very last step before you can log in, and then your dashboard is all yours. Keep an eye on your inbox, it is on its way right now.</p>
       <p class="form-note" id="joinDoneNote" hidden></p>
-      <a class="btn btn-outline btn-block" href="/login">Go to login</a>
+      <p class="join-foot muted">Already confirmed and set your password? <a href="/login">Log in</a>.</p>
     </div>
   </div>
   ${joinStyles()}

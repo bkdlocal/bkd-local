@@ -96,6 +96,8 @@
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || 'Could not finish signup.');
+      const emailSpan = document.getElementById('joinDoneEmail');
+      if (emailSpan && body.email) emailSpan.textContent = body.email;
       card.hidden = true;
       done.hidden = false;
       launchConfetti();

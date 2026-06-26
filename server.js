@@ -271,8 +271,9 @@ async function issueBakerSetPassword(req, rec, email) {
   await updateBakerAuth(rec, { 'Set Password Token': token, 'Set Password Token Expires': expires });
   const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
   const link = `${base}/auth/set-password?token=${encodeURIComponent(token)}`;
+  const firstName = String((rec.fields && rec.fields['Contact Name']) || '').trim().split(' ')[0];
   try {
-    await emailService.sendSetPasswordEmail({ to: email, link });
+    await emailService.sendSetPasswordEmail({ to: email, link, firstName });
   } catch (e) {
     // Roll back the token so a failed send never leaves a dangling, unusable
     // token on the record. Clearing token fields is allowed by the guardrail;
@@ -564,6 +565,7 @@ app.patch('/api/baker', requireAuth, async (req, res, next) => {
       businessName: 'Business Name',
       phone: 'Phone',
       city: 'City',
+      zipCode: 'Zip Code',
       pickupLocation: 'Exact Pick-up Address',
       bio: 'Bio',
       profileStatus: 'Profile Status'

@@ -261,14 +261,22 @@ async function sendVerificationEmail({ to, link }) {
   });
 }
 
-async function sendSetPasswordEmail({ to, link }) {
+async function sendSetPasswordEmail({ to, link, firstName }) {
+  const name = String(firstName || '').trim();
   return send({
     to,
-    subject: 'Set your Bkd Local baker password',
-    text: `Set the password for your Bkd Local baker account. This link is valid for 72 hours: ${link}`,
-    html: `<p>Set the password for your Bkd Local baker account. This link is valid for 72 hours.</p>
-<p><a href="${link}">Set my password</a></p>
-<p>If the button does not work, paste this link into your browser:<br>${link}</p>`
+    subject: 'Confirm your email and set your Bkd Local password',
+    html: brandedEmail({
+      heading: `You're in${name ? ', ' + name : ''}!`,
+      paragraphs: [
+        `I am so glad you are here. Let's get your bakery officially up and running.`,
+        `Tap the button below to confirm this is your email and set your password. That is your key to your dashboard, where we will set up your profile and get you ready for customers. You have got this.`
+      ],
+      ctaText: 'Confirm my email and set my password',
+      ctaUrl: link,
+      highlightHtml: `This link is just for you and good for the next 72 hours. If it expires, no worries, just head to the login page and tap "Set or reset your password" for a fresh one.`
+    }),
+    text: `You're in${name ? ', ' + name : ''}! Confirm your email and set your Bkd Local password here (good for 72 hours): ${link}`
   });
 }
 
