@@ -148,20 +148,50 @@ function ensureBakeTimerTick() {
 // Reads the live DOM input first; falls back to the in-memory state value
 // (kept in sync by onPmbListedPriceInput) so the rate still computes even if
 // the input element can't be found at the moment of pause.
-function bakeTimerResultMessage(elapsedMs) {
-  // Read the live "Your listed price" input (by id, then by class), falling back
-  // to the in-memory state value kept in sync by onPmbListedPriceInput.
-  let price = NaN;
+// Resolve the listed price from the live input (valueAsNumber is reliable for
+// type=number regardless of "34" vs "34.0" formatting), then by class, then
+// from in-memory state. Logged so we can confirm what was actually read.
+function bakeReadListedPrice() {
   const input = document.getElementById('pmb-listed-price') || document.querySelector('.pmb-summary-price-input');
-  if (input && input.value !== '') price = parseFloat(input.value);
+  let price = NaN;
+  if (input) {
+    price = (typeof input.valueAsNumber === 'number' && !Number.isNaN(input.valueAsNumber))
+      ? input.valueAsNumber
+      : parseFloat(input.value);
+  }
   if (!(price > 0) && typeof Router !== 'undefined' && Router.state && Router.state.priceMyBakes) {
     price = Number(Router.state.priceMyBakes.listedPrice);
   }
+  try {
+    console.log('[bakeTimer] listed price read', {
+      foundInput: !!input,
+      rawValue: input ? input.value : null,
+      valueAsNumber: input ? input.valueAsNumber : null,
+      statePrice: (Router.state && Router.state.priceMyBakes) ? Router.state.priceMyBakes.listedPrice : null,
+      resolved: price
+    });
+  } catch (_) {}
+  return price;
+}
+
+function bakeTimerResultMessage(elapsedMs) {
+  const price = bakeReadListedPrice();
   const hours = elapsedMs / 3600000;
   if (price > 0 && hours > 0) {
     return `At this pace you make approximately $${Math.round(price / hours).toLocaleString('en-US')} per hour`;
   }
   return 'Enter your listed price in the Profit Summary below to see your hourly rate.';
+}
+
+// Recompute and repaint the hourly-rate result for a stopped (paused) timer.
+// Called when the timer is stopped AND whenever the listed price changes while
+// paused, so the rate appears as soon as a price exists (regardless of whether
+// the price was entered before or after the timer was stopped).
+function recalcBakeTimerResult() {
+  const t = readBakeTimer();
+  if (t.state !== 'paused') return;
+  writeBakeTimer({ state: t.state, startTs: t.startTs, accumMs: t.accumMs, result: bakeTimerResultMessage(bakeElapsedMs(t)) });
+  paintBakeTimer();
 }
 function paintBakeTimer() {
   const t = readBakeTimer();

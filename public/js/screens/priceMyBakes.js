@@ -566,9 +566,12 @@ function onPmbSupplyQtyInput(e, idx) {
 }
 
 function onPmbListedPriceInput(e) {
-  const state = Router.state.priceMyBakes || {};
-  state.listedPrice = parseFloat(e.target.value) || 0;
+  // Ensure the write lands on the persisted state object (never a throwaway).
+  if (!Router.state.priceMyBakes) Router.state.priceMyBakes = {};
+  Router.state.priceMyBakes.listedPrice = parseFloat(e.target.value) || 0;
   pmbRecomputeSummary();
+  // If the Bake Timer is stopped, update its hourly rate live as the price changes.
+  if (typeof recalcBakeTimerResult === 'function') recalcBakeTimerResult();
 }
 
 function onPmbBatchSizeInput(e) {
