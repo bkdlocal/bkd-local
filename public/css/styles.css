@@ -202,10 +202,14 @@ body {
   font-family: inherit; font-size: 14px; font-weight: 500;
   padding: 11px 22px; border-radius: 999px; cursor: pointer;
 }
+/* Dedicated result area: always present so the card reserves room (16px below
+   the buttons, min-height for the text); card padding gives 16px+ below it. */
 .pmb-timer-result {
-  color: #ffffff; font-weight: 500; font-size: 14px; margin-top: 14px; line-height: 1.4;
+  margin-top: 16px;
+  min-height: 40px;
+  color: #ffffff; font-weight: 500; font-size: 14px; line-height: 1.5;
+  text-align: center;
 }
-.pmb-timer-result[hidden] { display: none; }
 
 .btn {
   display: inline-flex; align-items: center; justify-content: center;

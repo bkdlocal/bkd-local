@@ -183,7 +183,7 @@ function renderPmbTimerCard(state) {
         <button type="button" class="pmb-timer-start" id="bakeTimerToggle" data-action="pmb:timerToggle">${label}</button>
         <button type="button" class="pmb-timer-reset" data-action="pmb:timerReset">Reset</button>
       </div>
-      <div class="pmb-timer-result" id="bakeTimerResult"${result ? '' : ' hidden'}>${escapePmbHtml(result)}</div>
+      <div class="pmb-timer-result" id="bakeTimerResult">${escapePmbHtml(result)}</div>
     </div>
   `;
 }

@@ -200,10 +200,8 @@ function paintBakeTimer() {
   const res = document.getElementById('bakeTimerResult');
   if (disp) disp.textContent = formatHMS(bakeElapsedMs(t));
   if (btn) btn.textContent = t.state === 'running' ? 'Pause' : (t.state === 'paused' ? 'Resume' : 'Start Timer');
-  if (res) {
-    if (t.result) { res.textContent = t.result; res.hidden = false; }
-    else { res.textContent = ''; res.hidden = true; }
-  }
+  // Result area is always present (reserves space); empty string shows nothing.
+  if (res) res.textContent = t.result || '';
 }
 
 const Actions = {
