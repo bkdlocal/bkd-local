@@ -12,7 +12,10 @@
     e.preventDefault();
     err.hidden = true; note.hidden = true; btn.disabled = true;
     const body = { email: val('email'), password: val('password') };
-    if (mode === 'signup') { body.firstName = val('firstName'); body.lastName = val('lastName'); }
+    if (mode === 'signup') {
+      body.firstName = val('firstName'); body.lastName = val('lastName');
+      body.state = val('state'); body.zipCode = val('zipCode');
+    }
     const url = mode === 'signup' ? '/api/customer/signup' : '/api/customer/login';
     try {
       const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

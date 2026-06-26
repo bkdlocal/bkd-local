@@ -14,7 +14,7 @@
         const j = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(j.error || 'Upload failed.');
         let img = avatar.querySelector('img');
-        if (!img) { img = document.createElement('img'); img.alt = 'Your photo'; avatar.insertBefore(img, avatar.firstChild); const init = avatar.querySelector('.avatar-initial'); if (init) init.remove(); }
+        if (!img) { img = document.createElement('img'); img.alt = 'Your photo'; avatar.insertBefore(img, avatar.firstChild); const ph = avatar.querySelector('.avatar-placeholder'); if (ph) ph.remove(); }
         img.src = j.url + (j.url.indexOf('?') >= 0 ? '&' : '?') + 't=' + Date.now();
       } catch (e) { alert(e.message); }
       finally { avatar.classList.remove('uploading'); input.value = ''; }

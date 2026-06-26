@@ -99,8 +99,8 @@ function renderCustomerProfile({ customer, orders, viewer }) {
       ${avatarBlock(customer)}
       <form id="profileForm" class="profile-fields">
         <div class="two-col">
-          <div class="field"><label for="firstName">First name</label><input id="firstName" name="firstName" type="text" placeholder="First name" value="${esc(customer.firstName || '')}"></div>
-          <div class="field"><label for="lastName">Last name</label><input id="lastName" name="lastName" type="text" placeholder="Last name" value="${esc(customer.lastName || '')}"></div>
+          <div class="field"><label for="firstName">First name</label><input id="firstName" name="firstName" type="text" placeholder="First Name" value="${esc(customer.firstName || '')}"></div>
+          <div class="field"><label for="lastName">Last name</label><input id="lastName" name="lastName" type="text" placeholder="Last Name" value="${esc(customer.lastName || '')}"></div>
         </div>
         <div class="field"><label for="city">City</label><input id="city" name="city" type="text" placeholder="City" value="${esc(customer.city || '')}"></div>
         <div class="two-col">

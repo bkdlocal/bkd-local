@@ -1182,9 +1182,12 @@ app.post('/api/customer/signup', async (req, res, next) => {
     const password = String(req.body?.password || '');
     const firstName = String(req.body?.firstName || '').trim();
     const lastName = String(req.body?.lastName || '').trim();
+    const state = String(req.body?.state || '').trim();
+    const zipCode = String(req.body?.zipCode || '').trim();
     if (!isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     if (!firstName) return res.status(400).json({ error: 'First name is required.' });
+    if (!/^\d{5}$/.test(zipCode)) return res.status(400).json({ error: 'A valid 5-digit ZIP code is required.' });
 
     const existing = await customers.findByEmail(email);
     if (existing) return res.status(409).json({ error: 'An account with that email already exists.' });
@@ -1195,6 +1198,8 @@ app.post('/api/customer/signup', async (req, res, next) => {
       'Email': email,
       'Phone': req.body?.phone || undefined,
       'City': req.body?.city || undefined,
+      'State': state || undefined,
+      'Zip Code': zipCode,
       'Password Hash': hashPassword(password),
       'Email Verified': false,
       'Rating Count': 0,
@@ -1216,9 +1221,12 @@ app.post('/api/customer/quick-signup', async (req, res, next) => {
     const password = String(req.body?.password || '');
     const firstName = String(req.body?.firstName || '').trim();
     const lastName = String(req.body?.lastName || '').trim();
+    const state = String(req.body?.state || '').trim();
+    const zipCode = String(req.body?.zipCode || '').trim();
     if (!isValidEmail(email)) return res.status(400).json({ error: 'A valid email is required.' });
     if (password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters.' });
     if (!firstName) return res.status(400).json({ error: 'First name is required.' });
+    if (!/^\d{5}$/.test(zipCode)) return res.status(400).json({ error: 'A valid 5-digit ZIP code is required.' });
 
     const existing = await customers.findByEmail(email);
     if (existing) return res.status(409).json({ error: 'An account with that email already exists. Please sign in.' });
@@ -1239,6 +1247,8 @@ app.post('/api/customer/quick-signup', async (req, res, next) => {
       'First Name': firstName,
       'Last Name': lastName || undefined,
       'Email': email,
+      'State': state || undefined,
+      'Zip Code': zipCode,
       'Password Hash': hashPassword(password),
       'Email Verified': true,
       'Rating Count': 0,
@@ -1766,9 +1776,21 @@ app.get('/bakers', async (req, res, next) => {
       }
     }
 
+    // Prefill the search box from a logged-in customer's saved zip when they
+    // haven't typed one. Display-only: the radius filter still requires an
+    // actual search submission, so the default view stays "all bakers".
+    let zipPrefill = '';
+    if (!zip && req.customer) {
+      try {
+        const rec = await customers.findByEmail(req.customer.email);
+        const saved = String((rec && rec.fields && rec.fields['Zip Code']) || '').trim();
+        if (/^\d{5}$/.test(saved)) zipPrefill = saved;
+      } catch (_) { /* prefill is best-effort */ }
+    }
+
     res.type('html').send(publicSite.renderDirectory({
       bakers, cities, types,
-      filters: { city, type, q, mode, date, from, to, zip: zipResolved ? zip : '', radius },
+      filters: { city, type, q, mode, date, from, to, zip: zipResolved ? zip : '', radius, zipPrefill },
       total: all.length,
       viewer: await viewerFor(req)
     }));

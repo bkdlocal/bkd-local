@@ -117,8 +117,10 @@ function renderAuth({ mode, redirect }) {
   const isSignup = mode === 'signup';
   const r = redirect || '';
   const signupFields = isSignup ? `
-      <div class="field"><label for="firstName">First name</label><input id="firstName" type="text" autocomplete="given-name"></div>
-      <div class="field"><label for="lastName">Last name</label><input id="lastName" type="text" autocomplete="family-name"></div>` : '';
+      <div class="field"><label for="firstName">First Name</label><input id="firstName" type="text" autocomplete="given-name"></div>
+      <div class="field"><label for="lastName">Last Name</label><input id="lastName" type="text" autocomplete="family-name"></div>
+      <div class="field"><label for="state">State</label><input id="state" type="text" autocomplete="address-level1" value="TN"></div>
+      <div class="field"><label for="zipCode">ZIP Code</label><input id="zipCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" autocomplete="postal-code" placeholder="ZIP code" required></div>` : '';
   const body = `
   <div class="auth-wrap">
     <div class="auth-card">

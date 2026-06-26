@@ -39,6 +39,8 @@
       lastName: (fd.get('lastName') || '').trim(),
       email: (fd.get('email') || '').trim(),
       password: fd.get('password') || '',
+      state: (fd.get('state') || '').trim(),
+      zipCode: (fd.get('zipCode') || '').trim(),
       bakerId: bakerId,
       ref: ref
     };

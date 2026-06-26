@@ -186,7 +186,7 @@ function searchBlock(filters) {
       </div>
     </div>
     <div class="search-geo">
-      <input type="text" name="zip" value="${esc(f.zip || '')}" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="ZIP code" aria-label="ZIP code">
+      <input type="text" name="zip" value="${esc(f.zip || f.zipPrefill || '')}" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="ZIP code" aria-label="ZIP code">
       <select name="radius" aria-label="Search radius">${radiusOptions}</select>
     </div>
     <div class="search-secondary">
@@ -413,6 +413,10 @@ function bakerSignupModal(baker) {
           </div>
           <input name="email" type="email" placeholder="Email" autocomplete="email" required>
           <input name="password" type="password" placeholder="Password" autocomplete="new-password" required>
+          <div class="bsm-two">
+            <input name="state" type="text" placeholder="State" autocomplete="address-level1" value="TN">
+            <input name="zipCode" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="ZIP code" autocomplete="postal-code" required>
+          </div>
           <button type="submit" class="bsm-submit">Create account and continue</button>
           <p class="bsm-error" id="bsmError" hidden></p>
         </form>
