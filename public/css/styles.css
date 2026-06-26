@@ -1137,6 +1137,30 @@ body {
 }
 .conv-unread .conv-preview { font-weight: 500; }
 
+/* Custom-quote markers (baker side). Mirrors the customer "Quote" tag + banner,
+   recolored to the brand Berry Rose accent. */
+.conv-quote-tag {
+  display: inline-block;
+  margin-left: 6px;
+  background: var(--qi-rose);
+  color: var(--berry);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 8px;
+  border-radius: 999px;
+  vertical-align: middle;
+}
+.conv-quote-banner {
+  background: var(--qi-rose);
+  border-bottom: 1.5px solid var(--petal);
+  border-left: 3px solid var(--berry);
+  color: var(--plum);
+  padding: 10px 16px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.conv-quote-banner strong { color: var(--berry); font-weight: 500; }
+
 .conv-dot {
   flex: 0 0 auto;
   width: 10px;

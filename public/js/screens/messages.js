@@ -45,7 +45,7 @@ function renderConversationRow(c) {
       </div>
       <div class="conv-body">
         <div class="conv-row-top">
-          <div class="conv-name">${c.customerName}</div>
+          <div class="conv-name">${c.customerName}${c.isCustomQuote ? ' <span class="conv-quote-tag">Quote</span>' : ''}</div>
           <div class="conv-time">${formatRelative(c.lastMessageAt)}</div>
         </div>
         <div class="conv-preview">${truncate(preview, 80)}</div>

@@ -34,6 +34,8 @@ async function renderConversation(state = {}) {
         </div>
       </div>
 
+      ${conv.isCustomQuote ? `<div class="conv-quote-banner"><strong>Custom quote request.</strong> Reply with your price to send this customer a quote.</div>` : ''}
+
       <div class="scroll-content conv-thread">
         ${grouped.map(renderDayGroup).join('')}
       </div>
