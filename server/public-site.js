@@ -162,6 +162,11 @@ function custBottomNav(viewer) {
 function searchBlock(filters) {
   const f = filters || {};
   const isRange = f.mode === 'range';
+  const radii = [5, 10, 25, 50];
+  const selRadius = radii.includes(Number(f.radius)) ? Number(f.radius) : 25;
+  const radiusOptions = radii
+    .map(r => `<option value="${r}"${r === selRadius ? ' selected' : ''}>${r} mi</option>`)
+    .join('');
   return `<form class="search-block" method="get" action="/bakers">
     <div class="search-prompt">When's the celebration?</div>
     <input class="mode-radio" type="radio" name="mode" id="mode-single" value="single"${isRange ? '' : ' checked'}>
@@ -179,6 +184,10 @@ function searchBlock(filters) {
         <span class="to-sep">to</span>
         <input type="date" name="to" value="${esc(f.to || '')}" aria-label="To date">
       </div>
+    </div>
+    <div class="search-geo">
+      <input type="text" name="zip" value="${esc(f.zip || '')}" inputmode="numeric" pattern="[0-9]*" maxlength="5" placeholder="ZIP code" aria-label="ZIP code">
+      <select name="radius" aria-label="Search radius">${radiusOptions}</select>
     </div>
     <div class="search-secondary">
       <span class="search-icon">${SEARCH_ICON}</span>
@@ -280,18 +289,23 @@ function dateLabel(filters) {
 }
 
 function renderDirectory({ bakers, cities, types, filters, total, viewer }) {
-  // Carry the active date + text query through every filter pill.
-  const carry = { q: filters.q, mode: filters.mode, date: filters.date, from: filters.from, to: filters.to };
+  // Carry the active date + text query + zip/radius through every filter pill.
+  const carry = { q: filters.q, mode: filters.mode, date: filters.date, from: filters.from, to: filters.to,
+    zip: filters.zip, radius: filters.zip ? filters.radius : '' };
   const typePills = [pill('All treats', `/bakers${buildQuery({ ...carry })}`, !filters.type && !filters.city)]
     .concat(types.map(t => pill(t, `/bakers${buildQuery({ ...carry, type: t })}`, filters.type === t)))
     .concat(cities.map(c => pill(shortCity(c), `/bakers${buildQuery({ ...carry, city: c })}`, filters.city === c)))
     .join('');
 
   const dl = dateLabel(filters);
-  const countSuffix = dl ? `available ${esc(dl)}` : `in ${esc(REGION)}`;
+  const zipLabel = filters.zip ? `within ${esc(filters.radius)} mi of ${esc(filters.zip)}` : '';
+  const countSuffix = [zipLabel, dl ? `available ${esc(dl)}` : '']
+    .filter(Boolean).join(' · ') || `in ${esc(REGION)}`;
 
   let emptyMsg;
-  if (dl) {
+  if (filters.zip) {
+    emptyMsg = `No bakers found within ${esc(filters.radius)} mi of ${esc(filters.zip)}${dl ? ` for ${esc(dl)}` : ''}. Try a wider radius or <a href="/bakers">clear your search</a>.`;
+  } else if (dl) {
     emptyMsg = `No bakers are available ${esc(dl)}. Try another date or <a href="/bakers">clear your search</a>.`;
   } else {
     emptyMsg = `No bakers match your search. <a href="/bakers">Clear filters</a>.`;

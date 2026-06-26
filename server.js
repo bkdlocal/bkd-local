@@ -32,6 +32,7 @@ const emailService = require('./server/email');
 const { CustomerStore, customerPublic } = require('./server/customers');
 const publicSite = require('./server/public-site');
 const publicData = require('./server/public-data');
+const geo = require('./server/geo');
 const orderFlow = require('./server/order-flow');
 const joinFlow = require('./server/join-flow');
 const stripeClient = require('./server/stripe');
@@ -1707,6 +1708,12 @@ app.get('/bakers', async (req, res, next) => {
     const type = req.query.type ? String(req.query.type) : '';
     const q = req.query.q ? String(req.query.q).trim() : '';
 
+    // Zip + radius (optional). Empty zip => no distance filter (show all as normal).
+    const RADIUS_OPTIONS = [5, 10, 25, 50];
+    const zip = /^\d{5}$/.test(String(req.query.zip || '').trim()) ? String(req.query.zip).trim() : '';
+    let radius = parseInt(req.query.radius, 10);
+    if (!RADIUS_OPTIONS.includes(radius)) radius = 25; // default when zip set but radius missing/invalid
+
     // Date-first filter (primary). Single date or inclusive from/to range.
     const isDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
     const mode = req.query.mode === 'range' ? 'range' : 'single';
@@ -1739,9 +1746,29 @@ app.get('/bakers', async (req, res, next) => {
     if (city) bakers = bakers.filter(b => b.city === city);
     if (type) bakers = bakers.filter(b => b.productTypes.includes(type));
 
+    // Distance filter: keep only bakers whose zip is within `radius` miles of the
+    // searched zip. If the searched zip can't be geocoded, fall back to no filter
+    // so the search still returns results (graceful degradation).
+    let zipResolved = false;
+    if (zip) {
+      const origin = await geo.geocodeZip(zip);
+      if (origin) {
+        zipResolved = true;
+        const withDistance = await Promise.all(bakers.map(async b => {
+          if (!b.zip) return null; // no zip on file -> can't place within a radius
+          const point = await geo.geocodeZip(b.zip);
+          if (!point) return null;
+          const miles = geo.haversineMiles(origin.lat, origin.lng, point.lat, point.lng);
+          return miles <= radius ? b : null;
+        }));
+        // Preserve the existing Charter-first ordering; just drop out-of-range bakers.
+        bakers = withDistance.filter(Boolean);
+      }
+    }
+
     res.type('html').send(publicSite.renderDirectory({
       bakers, cities, types,
-      filters: { city, type, q, mode, date, from, to },
+      filters: { city, type, q, mode, date, from, to, zip: zipResolved ? zip : '', radius },
       total: all.length,
       viewer: await viewerFor(req)
     }));
