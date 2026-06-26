@@ -1,14 +1,17 @@
 const ANTHROPIC_API = 'https://api.anthropic.com/v1/messages';
 
-const SMART_REPLY_SYSTEM = `You write the exact reply a home baker will send to a customer, in her own warm, friendly voice.
+const SMART_REPLY_SYSTEM = `You write the exact text of the reply a home baker will send to a customer, in her own warm, friendly voice.
 
-OUTPUT RULES (critical):
-- Return ONLY the message text to send, exactly as the baker would send it. Nothing else.
-- No preamble, no reasoning, no explanation, no meta-commentary, no notes about the FAQ.
-- Never say things like "since there are no FAQ answers" or describe what you are doing.
-- No separators such as ---, no markdown, no headings, no labels.
-- Do not wrap the message in quotation marks.
-- Keep it to 1 to 3 short sentences.
+CRITICAL: Your entire response is sent to the customer verbatim. Output ONLY the message itself. The first character of your response must be the first character of the message, and the last character must be the end of the message. Write nothing before it and nothing after it.
+
+NEVER include any of the following:
+- Preamble, framing, or sign-posting of any kind (for example "Here's a reply:", "Sure!", "I'll craft a warm reply", "Let me...", "I'll keep it natural").
+- Reasoning, explanation, or narration of what you are doing, choosing, or deciding.
+- Any reference to FAQs, "answers on file", available information, or whether such information exists or is missing. Do not mention FAQs at all, in any form.
+- The customer described in the third person. You are writing AS the baker, not about her.
+- Separators such as ---, markdown, headings, labels, or surrounding quotation marks.
+
+When no FAQ answers are available, simply write a warm, natural, helpful reply based on the conversation. Do NOT narrate that anything is missing or unavailable. Just reply the way a friendly baker would.
 
 VOICE AND BRAND RULES:
 - Sound like a real person texting a customer. Never robotic or corporate.
@@ -17,7 +20,7 @@ VOICE AND BRAND RULES:
 - Never use the words "platform", "cottage baker", or "situation".
 - Never refer to women as "girls".
 - Do not sign off with the baker's name.
-- If FAQ answers are missing, just write a warm, helpful reply from the conversation. Never mention that any information is missing.`;
+- Keep it to 1 to 3 short sentences.`;
 
 const FAQ_LABELS = {
   specialties:        'What I bake',
@@ -91,8 +94,46 @@ async function callAnthropic({ apiKey, model, system, userMessage }) {
   return block ? block.text.trim() : '';
 }
 
+// Leading meta-commentary the model can emit before the real reply, e.g.
+// "Since there are no FAQ answers on file to pull from, I'll craft a warm,
+// natural reply:". These narrate the act of writing, or the (lack of) FAQ
+// data, and must never reach a customer. Each pattern matches ONE leading
+// sentence (up to its terminator . ! ? : or newline) and is intentionally
+// specific so it can't strip a genuine reply that merely starts with "I'll".
+const META_LEAD_PATTERNS = [
+  /^[^.!?:\n]*\bfaqs?\b[^.!?:\n]*/i,                                                            // any lead sentence mentioning FAQ(s)
+  /^[^.!?:\n]*\b(?:answers?|information|info|details?|notes?)\s+on file\b[^.!?:\n]*/i,          // "...answers on file..."
+  /^(?:(?:okay|ok|sure|alright|got it|great|so)[\s,:;!.…-]+)?here(?:'s| is)\s+(?:a|an|the|my|your)\b[^.!?:\n]*\b(?:reply|response|message|version|draft|suggestion|note)\b[^.!?:\n]*/i,
+  /^let me\b[^.!?:\n]*\b(?:craft|draft|compose|put together)\b[^.!?:\n]*/i,                     // "Let me craft..."
+  /^i(?:'ll| will)\s+(?:craft|draft|compose|write up|put together|go with|keep it|create)\b[^.!?:\n]*/i,
+  /^i(?:'m| am)\s+going to\s+(?:craft|draft|compose|write|put together|keep)\b[^.!?:\n]*/i,
+  /^based on\s+(?:the|this|our|your)\b[^.!?:\n]*\b(?:conversation|context|message|exchange|thread|info|information)\b[^.!?:\n]*/i,
+  /^the customer\b[^.!?:\n]*/i,                                                                // "The customer is asking about..."
+];
+
+function stripMetaPreamble(t) {
+  // Strip leading meta sentences repeatedly (the model can stack a couple).
+  for (let i = 0; i < 4; i++) {
+    const s = t.replace(/^["'“”\s]+/, '');
+    let matched = false;
+    for (const re of META_LEAD_PATTERNS) {
+      const m = s.match(re);
+      if (m && m[0].trim()) {
+        // Drop the matched lead plus its trailing terminator(s)/quotes/whitespace.
+        t = s.slice(m[0].length)
+          .replace(/^["'“”\s]*[.!?:,;…]+["'“”\s]*/, '')
+          .replace(/^["'“”\s]+/, '');
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) { t = s; break; }
+  }
+  return t;
+}
+
 // Defense in depth: even with the strict system prompt, never let reasoning,
-// separators, em dashes, or emojis reach the customer.
+// preamble, separators, em dashes, or emojis reach the customer.
 function sanitizeReply(text) {
   let t = String(text || '');
   // If the model emitted a "---" separator, keep only what follows the last one.
@@ -100,6 +141,8 @@ function sanitizeReply(text) {
   if (parts.length > 1) t = parts[parts.length - 1];
   // Drop surrounding quotes the model sometimes adds.
   t = t.trim().replace(/^["'“”]+|["'“”]+$/g, '');
+  // Strip any leading meta-commentary sentence(s) before the real reply.
+  t = stripMetaPreamble(t.trim());
   // No em dashes or en dashes (brand voice). Replace with a comma where spaced.
   t = t.replace(/\s*[—–]\s*/g, ', ');
   // Strip emojis and variation selectors.
