@@ -350,6 +350,39 @@ function computeIngredientCost({ item, store, override, quantity, unit }) {
   return pkgPrice * (grams / item.packageGrams);
 }
 
+// Generic unit conversion for custom ingredients (free-text units, so no
+// per-ingredient unit group). Each unit maps to a base amount within its
+// dimension: weight -> grams, volume -> ml, count -> count.
+const CUSTOM_UNIT_TO_BASE = {
+  g:     { dim: 'weight', factor: 1 },
+  oz:    { dim: 'weight', factor: 28.3495 },
+  lbs:   { dim: 'weight', factor: 453.592 },
+  ml:    { dim: 'volume', factor: 1 },
+  tsp:   { dim: 'volume', factor: 4.92892 },
+  tbsp:  { dim: 'volume', factor: 14.7868 },
+  cups:  { dim: 'volume', factor: 236.588 },
+  count: { dim: 'count',  factor: 1 }
+};
+
+// Cost of the amount used in one recipe, accounting for a unit mismatch between
+// the package unit and the amount unit (e.g. a 48 oz bag, 444 g used).
+//   costPerUse = packagePrice * (amountUsed / packageSize), with both sides
+//   converted to a common base unit when they share a dimension.
+// If either unit is unknown or they span different dimensions (which would need
+// a density we don't store), fall back to the raw ratio so the save still works.
+function customCostPerUse({ packagePrice, packageSize, packageUnit, amount, amountUnit }) {
+  const price = Number(packagePrice) || 0;
+  const size = Number(packageSize) || 0;
+  const amt = Number(amount) || 0;
+  if (price <= 0 || size <= 0 || amt <= 0) return 0;
+  const pu = CUSTOM_UNIT_TO_BASE[String(packageUnit || '').trim().toLowerCase()];
+  const au = CUSTOM_UNIT_TO_BASE[String(amountUnit || '').trim().toLowerCase()];
+  const fractionOfPackage = (pu && au && pu.dim === au.dim)
+    ? (amt * au.factor) / (size * pu.factor)
+    : amt / size;
+  return price * fractionOfPackage;
+}
+
 module.exports = {
   UNIT_GROUPS,
   CATALOG,
@@ -357,5 +390,7 @@ module.exports = {
   getCatalogItem,
   packagePriceAtStore,
   toGrams,
-  computeIngredientCost
+  computeIngredientCost,
+  CUSTOM_UNIT_TO_BASE,
+  customCostPerUse
 };

@@ -1,3 +1,5 @@
+const { customCostPerUse } = require('./ingredients');
+
 let baker = {
   id: 'mock-baker-1',
   email: 'claire@bakery.com',
@@ -513,26 +515,37 @@ let customIngredients = [
 ];
 
 function getCustomIngredients() { return customIngredients.map(c => ({ ...c })); }
-function addCustomIngredient(fields) {
-  const id = 'ci' + Date.now();
+
+function customIngredientShape(fields, id) {
   const packagePrice = Number(fields.packagePrice) || 0;
   const packageSize = Number(fields.packageSize) || 1;
+  const packageUnit = String(fields.packageUnit || 'oz');
   const amount = Number(fields.amountUsedPerRecipe) || 0;
-  const costPerUse = packageSize > 0 && amount > 0
-    ? packagePrice * (amount / packageSize)
-    : 0;
-  const item = {
+  const amountUnit = String(fields.amountUnit || fields.packageUnit || 'oz');
+  return {
     id,
     name: String(fields.name || '').trim() || 'Custom ingredient',
     emoji: fields.emoji || '⭐',
     packageSize,
-    packageUnit: String(fields.packageUnit || 'oz'),
+    packageUnit,
     packagePrice,
     amountUsedPerRecipe: amount,
-    amountUnit: String(fields.amountUnit || fields.packageUnit || 'oz'),
-    costPerUse
+    amountUnit,
+    costPerUse: customCostPerUse({ packagePrice, packageSize, packageUnit, amount, amountUnit })
   };
+}
+
+function addCustomIngredient(fields) {
+  const item = customIngredientShape(fields, 'ci' + Date.now());
   customIngredients.push(item);
+  return { ...item };
+}
+
+function updateCustomIngredient(id, fields) {
+  const idx = customIngredients.findIndex(c => c.id === id);
+  if (idx === -1) return null;
+  const item = customIngredientShape(fields, id);
+  customIngredients[idx] = item;
   return { ...item };
 }
 
@@ -677,6 +690,7 @@ module.exports = {
   setIngredientOverride,
   getCustomIngredients,
   addCustomIngredient,
+  updateCustomIngredient,
   getSupplies,
   upsertSupply,
   removeSupply,

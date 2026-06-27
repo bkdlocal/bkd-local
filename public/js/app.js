@@ -488,25 +488,51 @@ const Actions = {
 
   'pmb:openCustomForm': () => {
     const s = Router.state.priceMyBakes;
+    s.editCustomId = null;
     s.showCustomForm = true;
     Router.refresh({ keepScroll: true });
   },
 
   'pmb:closeCustomForm': () => {
     const s = Router.state.priceMyBakes;
+    s.editCustomId = null;
     s.showCustomForm = false;
     Router.refresh({ keepScroll: true });
   },
 
+  'pmb:editCustom': ({ id }) => {
+    const s = Router.state.priceMyBakes;
+    if (!s) return;
+    s.editCustomId = id;
+    s.showCustomForm = true;
+    Router.refresh({ keepScroll: true });
+  },
+
   'pmb:submitCustomForm': async (fields) => {
+    const s = Router.state.priceMyBakes;
     try {
+      // Editing an existing custom ingredient: update it in place (same id), so
+      // every recipe row already referencing it re-renders with the new cost.
+      if (s && s.editCustomId) {
+        const editId = s.editCustomId;
+        const r = await Api.updateCustomIngredient(editId, fields);
+        if (!r || !r.item || !r.item.id) {
+          throw new Error('Sorry, that ingredient couldn’t be saved. Please try again.');
+        }
+        const ci = PMB.custom.findIndex(c => c.id === editId);
+        if (ci !== -1) PMB.custom[ci] = r.item; else PMB.custom.push(r.item);
+        PMB.catalogById[r.item.id] = { ...r.item, isCustom: true };
+        s.editCustomId = null;
+        s.showCustomForm = false;
+        Router.refresh({ keepScroll: true });
+        return;
+      }
       const r = await Api.addCustomIngredient(fields);
       if (!r || !r.item || !r.item.id) {
         throw new Error('Sorry, that ingredient couldn’t be saved. Please try again.');
       }
       PMB.custom.push(r.item);
       PMB.catalogById[r.item.id] = { ...r.item, isCustom: true };
-      const s = Router.state.priceMyBakes;
       s.ingredients.push({ catalogId: r.item.id, custom: true, quantity: 1, unit: 'use' });
       s.showCustomForm = false;
       Router.refresh({ keepScroll: true });

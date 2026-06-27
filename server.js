@@ -14,7 +14,8 @@ const {
 } = require('./server/airtable');
 const {
   CATALOG: INGREDIENT_CATALOG,
-  UNIT_GROUPS
+  UNIT_GROUPS,
+  customCostPerUse
 } = require('./server/ingredients');
 const {
   getSessionSecret,
@@ -1445,26 +1446,44 @@ app.post('/api/baker/ingredient-overrides', requireAuth, async (req, res, next) 
 // calculator renders. Field names below must match the Airtable columns exactly.
 const CUSTOM_INGREDIENTS_TABLE = 'Custom Ingredients';
 
-function customIngredientCostPerUse(packagePrice, packageSize, amount) {
-  return packageSize > 0 && amount > 0 ? packagePrice * (amount / packageSize) : 0;
-}
-
 function customIngredientFromRecord(rec) {
   const f = rec.fields || {};
   const packagePrice = Number(f['Package Price']) || 0;
   const packageSize = Number(f['Package Size']) || 0;
+  const packageUnit = f['Package Unit'] || 'oz';
   const amount = Number(f['Amount Used Per Recipe']) || 0;
+  const amountUnit = f['Amount Unit'] || packageUnit;
   return {
     id: rec.id,
     name: f['Ingredient Name'] || 'Custom ingredient',
     emoji: '⭐',
     packageSize,
-    packageUnit: f['Package Unit'] || 'oz',
+    packageUnit,
     packagePrice,
     amountUsedPerRecipe: amount,
-    amountUnit: f['Amount Unit'] || f['Package Unit'] || 'oz',
+    amountUnit,
     costPerUse: f['Cost Per Use'] != null ? Number(f['Cost Per Use'])
-      : customIngredientCostPerUse(packagePrice, packageSize, amount)
+      : customCostPerUse({ packagePrice, packageSize, packageUnit, amount, amountUnit })
+  };
+}
+
+// Build the Airtable column payload (minus baker ownership) for a create/update.
+// Cost Per Use is computed unit-aware so a package in oz and an amount in g no
+// longer reads as "9 packages per recipe".
+function customIngredientFields(body) {
+  const packagePrice = Number(body?.packagePrice) || 0;
+  const packageSize = Number(body?.packageSize) || 1;
+  const packageUnit = String(body?.packageUnit || 'oz');
+  const amount = Number(body?.amountUsedPerRecipe) || 0;
+  const amountUnit = String(body?.amountUnit || body?.packageUnit || 'oz');
+  return {
+    'Ingredient Name': String(body?.name || '').trim(),
+    'Package Size': packageSize,
+    'Package Unit': packageUnit,
+    'Package Price': packagePrice,
+    'Amount Used Per Recipe': amount,
+    'Amount Unit': amountUnit,
+    'Cost Per Use': customCostPerUse({ packagePrice, packageSize, packageUnit, amount, amountUnit })
   };
 }
 
@@ -1496,24 +1515,41 @@ app.post('/api/baker/custom-ingredients', requireAuth, async (req, res, next) =>
     if (!fieldset) {
       return res.status(503).json({ error: 'Custom ingredients aren’t set up yet. Please try again shortly.' });
     }
-    const packagePrice = Number(req.body?.packagePrice) || 0;
-    const packageSize = Number(req.body?.packageSize) || 1;
-    const amount = Number(req.body?.amountUsedPerRecipe) || 0;
-    const costPerUse = customIngredientCostPerUse(packagePrice, packageSize, amount);
     // knownFields drops any column the baker hasn't added yet so create never
     // 422s on a partially-built table; required columns must exist to persist.
     const fields = await airtable.knownFields(CUSTOM_INGREDIENTS_TABLE, {
-      'Ingredient Name': name,
-      'Package Size': packageSize,
-      'Package Unit': String(req.body?.packageUnit || 'oz'),
-      'Package Price': packagePrice,
-      'Amount Used Per Recipe': amount,
-      'Amount Unit': String(req.body?.amountUnit || req.body?.packageUnit || 'oz'),
-      'Cost Per Use': costPerUse,
+      ...customIngredientFields(req.body),
       'Baker': [baker.id],
       'Baker Email': normEmail(baker.email)
     });
     const rec = await airtable.create(CUSTOM_INGREDIENTS_TABLE, fields);
+    res.json({ ok: true, item: customIngredientFromRecord(rec) });
+  } catch (e) { next(e); }
+});
+
+// Edit a custom ingredient (e.g. a baker updating a price that changed).
+// Recomputes Cost Per Use from the submitted fields, unit-aware.
+app.patch('/api/baker/custom-ingredients/:id', requireAuth, async (req, res, next) => {
+  try {
+    const baker = await currentBaker(req);
+    const name = String(req.body?.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'Ingredient name is required.' });
+    if (MODE === 'mock') {
+      const item = mock.updateCustomIngredient(req.params.id, req.body);
+      if (!item) return res.status(404).json({ error: 'Ingredient not found.' });
+      return res.json({ ok: true, item });
+    }
+    const fieldset = await airtable.tableFieldNames(CUSTOM_INGREDIENTS_TABLE);
+    if (!fieldset) {
+      return res.status(503).json({ error: 'Custom ingredients aren’t set up yet. Please try again shortly.' });
+    }
+    // Only let a baker edit their own ingredient.
+    const existing = await airtable.findById(CUSTOM_INGREDIENTS_TABLE, req.params.id);
+    if (!existing || normEmail(existing.fields?.['Baker Email']) !== baker.email) {
+      return res.status(404).json({ error: 'Ingredient not found.' });
+    }
+    const fields = await airtable.knownFields(CUSTOM_INGREDIENTS_TABLE, customIngredientFields(req.body));
+    const rec = await airtable.update(CUSTOM_INGREDIENTS_TABLE, req.params.id, fields);
     res.json({ ok: true, item: customIngredientFromRecord(rec) });
   } catch (e) { next(e); }
 });

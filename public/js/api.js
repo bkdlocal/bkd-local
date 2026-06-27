@@ -103,6 +103,7 @@ const Api = {
   },
   getCustomIngredients()            { return this._get('/api/baker/custom-ingredients'); },
   addCustomIngredient(fields)       { return this._post('/api/baker/custom-ingredients', fields); },
+  updateCustomIngredient(id, fields){ return this._patch(`/api/baker/custom-ingredients/${id}`, fields); },
   getSupplies()                     { return this._get('/api/baker/supplies'); },
   upsertSupply(fields)              { return this._post('/api/baker/supplies', fields); },
   removeSupply(id)                  { return this._delete(`/api/baker/supplies/${id}`); },

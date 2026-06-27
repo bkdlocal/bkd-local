@@ -303,7 +303,7 @@ function renderPmbIngredientsSection(state) {
       <button type="button" class="pmb-custom-link" data-action="pmb:openCustomForm">
         Don&rsquo;t see your ingredient? Add it
       </button>
-      ${state.showCustomForm ? renderPmbCustomForm() : ''}
+      ${state.showCustomForm ? renderPmbCustomForm(state.editCustomId ? PMB.catalogById[state.editCustomId] : null) : ''}
       <div class="pmb-ingredient-list" id="pmb-ingredient-list">
         ${state.ingredients.length
           ? state.ingredients.map((ing, idx) => renderPmbIngredientRow(state, ing, idx)).join('')
@@ -330,8 +330,12 @@ function renderPmbIngredientRow(state, ingredient, idx) {
       <div class="pmb-ing-body">
         <div class="pmb-ing-top">
           <div class="pmb-ing-name">${escapePmbHtml(item.name)}</div>
-          <button type="button" class="pmb-ing-remove"
-            data-action="pmb:removeIngredient" data-id="${idx}" aria-label="Remove">×</button>
+          <div class="pmb-ing-actions">
+            ${isCustom ? `<button type="button" class="pmb-ing-edit"
+              data-action="pmb:editCustom" data-id="${item.id}" aria-label="Edit ingredient">Edit</button>` : ''}
+            <button type="button" class="pmb-ing-remove"
+              data-action="pmb:removeIngredient" data-id="${idx}" aria-label="Remove">×</button>
+          </div>
         </div>
         <button type="button"
           class="pmb-ing-price ${overridden ? 'pmb-ing-price-override' : ''} ${isCustom ? 'pmb-ing-price-custom' : ''}"
@@ -359,25 +363,29 @@ function renderPmbIngredientRow(state, ingredient, idx) {
   `;
 }
 
-function renderPmbCustomForm() {
-  const unitOptions = ['oz', 'lbs', 'g', 'ml', 'cups', 'tbsp', 'tsp', 'count']
-    .map(u => `<option value="${u}">${u}</option>`).join('');
+function renderPmbCustomForm(editItem) {
+  const units = ['oz', 'lbs', 'g', 'ml', 'cups', 'tbsp', 'tsp', 'count'];
+  const unitOptions = (selected) => units
+    .map(u => `<option value="${u}" ${selected === u ? 'selected' : ''}>${u}</option>`).join('');
+  const e = editItem || {};
+  const isEdit = !!editItem;
+  const numVal = (x) => x != null && x !== '' ? escapePmbHtml(x) : '';
   return `
     <form class="pmb-custom-form" data-action="pmb:submitCustomForm">
-      <div class="pmb-custom-form-title">Add a custom ingredient</div>
-      <input type="text" name="name" placeholder="Ingredient name" class="pmb-input" required />
+      <div class="pmb-custom-form-title">${isEdit ? 'Edit ingredient' : 'Add a custom ingredient'}</div>
+      <input type="text" name="name" placeholder="Ingredient name" class="pmb-input" required value="${numVal(e.name)}" />
       <div class="pmb-form-row">
-        <input type="number" step="0.01" min="0" name="packageSize" placeholder="Package size" class="pmb-input pmb-input-half" required />
-        <select name="packageUnit" class="pmb-input pmb-input-half">${unitOptions}</select>
+        <input type="number" step="0.01" min="0" name="packageSize" placeholder="Package size" class="pmb-input pmb-input-half" required value="${numVal(e.packageSize)}" />
+        <select name="packageUnit" class="pmb-input pmb-input-half">${unitOptions(e.packageUnit)}</select>
       </div>
-      <input type="number" step="0.01" min="0" name="packagePrice" placeholder="Package price ($)" class="pmb-input" required />
+      <input type="number" step="0.01" min="0" name="packagePrice" placeholder="Package price ($)" class="pmb-input" required value="${numVal(e.packagePrice)}" />
       <div class="pmb-form-row">
-        <input type="number" step="0.01" min="0" name="amountUsedPerRecipe" placeholder="Amount used per recipe" class="pmb-input pmb-input-half" required />
-        <select name="amountUnit" class="pmb-input pmb-input-half">${unitOptions}</select>
+        <input type="number" step="0.01" min="0" name="amountUsedPerRecipe" placeholder="Amount used per recipe" class="pmb-input pmb-input-half" required value="${numVal(e.amountUsedPerRecipe)}" />
+        <select name="amountUnit" class="pmb-input pmb-input-half">${unitOptions(e.amountUnit)}</select>
       </div>
       <div class="pmb-form-actions">
         <button type="button" class="pmb-form-cancel" data-action="pmb:closeCustomForm">Cancel</button>
-        <button type="submit" class="pmb-form-submit">Save ingredient</button>
+        <button type="submit" class="pmb-form-submit">${isEdit ? 'Save changes' : 'Save ingredient'}</button>
       </div>
     </form>
   `;

@@ -1904,6 +1904,19 @@ body {
   font-weight: 500;
   color: var(--plum);
 }
+.pmb-ing-actions { display: flex; align-items: center; gap: 2px; }
+.pmb-ing-edit {
+  background: transparent;
+  border: none;
+  color: var(--mauve);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.pmb-ing-edit:active { color: var(--berry); }
 .pmb-ing-remove {
   background: transparent;
   border: none;
