@@ -1439,23 +1439,82 @@ app.post('/api/baker/ingredient-overrides', requireAuth, async (req, res, next) 
   } catch (e) { next(e); }
 });
 
+// Custom ingredients persist to the "Custom Ingredients" Airtable table
+// (per-baker, matched on Baker Email like every other table). Cost Per Use is
+// computed here so the stored value matches what mock mode returns and what the
+// calculator renders. Field names below must match the Airtable columns exactly.
+const CUSTOM_INGREDIENTS_TABLE = 'Custom Ingredients';
+
+function customIngredientCostPerUse(packagePrice, packageSize, amount) {
+  return packageSize > 0 && amount > 0 ? packagePrice * (amount / packageSize) : 0;
+}
+
+function customIngredientFromRecord(rec) {
+  const f = rec.fields || {};
+  const packagePrice = Number(f['Package Price']) || 0;
+  const packageSize = Number(f['Package Size']) || 0;
+  const amount = Number(f['Amount Used Per Recipe']) || 0;
+  return {
+    id: rec.id,
+    name: f['Ingredient Name'] || 'Custom ingredient',
+    emoji: '⭐',
+    packageSize,
+    packageUnit: f['Package Unit'] || 'oz',
+    packagePrice,
+    amountUsedPerRecipe: amount,
+    amountUnit: f['Amount Unit'] || f['Package Unit'] || 'oz',
+    costPerUse: f['Cost Per Use'] != null ? Number(f['Cost Per Use'])
+      : customIngredientCostPerUse(packagePrice, packageSize, amount)
+  };
+}
+
 app.get('/api/baker/custom-ingredients', requireAuth, async (req, res, next) => {
   try {
-    await currentBaker(req);
+    const baker = await currentBaker(req);
     if (MODE === 'mock') return res.json({ items: mock.getCustomIngredients() });
-    res.json({ items: [] });
+    // Load gracefully even before the Airtable table exists: a missing table
+    // reads back as no schema, so return an empty list rather than 500-ing the
+    // whole calculator.
+    const fieldset = await airtable.tableFieldNames(CUSTOM_INGREDIENTS_TABLE);
+    if (!fieldset) return res.json({ items: [] });
+    const recs = await airtable.list(CUSTOM_INGREDIENTS_TABLE, {
+      filterByFormula: `LOWER(TRIM({Baker Email})) = '${escapeFormula(baker.email)}'`
+    });
+    res.json({ items: recs.map(customIngredientFromRecord) });
   } catch (e) { next(e); }
 });
 
 app.post('/api/baker/custom-ingredients', requireAuth, async (req, res, next) => {
   try {
-    await currentBaker(req);
+    const baker = await currentBaker(req);
     const name = String(req.body?.name || '').trim();
     if (!name) return res.status(400).json({ error: 'Ingredient name is required.' });
     if (MODE === 'mock') {
       return res.json({ ok: true, item: mock.addCustomIngredient(req.body) });
     }
-    res.json({ ok: true, item: null });
+    const fieldset = await airtable.tableFieldNames(CUSTOM_INGREDIENTS_TABLE);
+    if (!fieldset) {
+      return res.status(503).json({ error: 'Custom ingredients aren’t set up yet. Please try again shortly.' });
+    }
+    const packagePrice = Number(req.body?.packagePrice) || 0;
+    const packageSize = Number(req.body?.packageSize) || 1;
+    const amount = Number(req.body?.amountUsedPerRecipe) || 0;
+    const costPerUse = customIngredientCostPerUse(packagePrice, packageSize, amount);
+    // knownFields drops any column the baker hasn't added yet so create never
+    // 422s on a partially-built table; required columns must exist to persist.
+    const fields = await airtable.knownFields(CUSTOM_INGREDIENTS_TABLE, {
+      'Ingredient Name': name,
+      'Package Size': packageSize,
+      'Package Unit': String(req.body?.packageUnit || 'oz'),
+      'Package Price': packagePrice,
+      'Amount Used Per Recipe': amount,
+      'Amount Unit': String(req.body?.amountUnit || req.body?.packageUnit || 'oz'),
+      'Cost Per Use': costPerUse,
+      'Baker': [baker.id],
+      'Baker Email': normEmail(baker.email)
+    });
+    const rec = await airtable.create(CUSTOM_INGREDIENTS_TABLE, fields);
+    res.json({ ok: true, item: customIngredientFromRecord(rec) });
   } catch (e) { next(e); }
 });
 

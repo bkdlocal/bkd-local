@@ -501,6 +501,9 @@ const Actions = {
   'pmb:submitCustomForm': async (fields) => {
     try {
       const r = await Api.addCustomIngredient(fields);
+      if (!r || !r.item || !r.item.id) {
+        throw new Error('Sorry, that ingredient couldn’t be saved. Please try again.');
+      }
       PMB.custom.push(r.item);
       PMB.catalogById[r.item.id] = { ...r.item, isCustom: true };
       const s = Router.state.priceMyBakes;
