@@ -91,13 +91,15 @@ function renderOrderFlow({ baker, item, availableDates, serviceFee, viewer }) {
         <button type="button" class="btn btn-outline" data-act="to-2">Back</button>
         <button type="button" class="btn btn-primary" data-act="submit" id="sendBtn">Send request</button>
       </div>
+      <p class="request-disclaimer">This is a request, not a confirmed order. ${esc(baker.businessName)} will review and accept it before anything is finalized.</p>
       <p class="form-error" id="orderError" hidden></p>
     </section>
 
     <section class="ostep" data-step="done">
       <div class="done-card">
         <h2>Request sent!</h2>
-        <p>Your request has gone to ${esc(baker.businessName)}. They will confirm and reach out with pickup and payment details.</p>
+        <p class="done-lead">Your request has gone to ${esc(baker.businessName)}. They will confirm and reach out with pickup and payment details.</p>
+        <p class="done-reassure">${esc(baker.businessName)} will review and accept it before your order is confirmed. You will hear back soon.</p>
         <a class="btn btn-primary btn-block" href="/bakers">Browse more bakers</a>
       </div>
     </section>

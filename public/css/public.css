@@ -423,6 +423,10 @@ textarea {
 .sum-total .sum-row span:last-child { color: var(--berry); }
 .pay-note { background: #f3eafb; color: #6b5a72; border-radius: 14px; padding: 12px 16px; font-size: 13px; margin: 18px 0; }
 .tax-disclaimer { color: #7A5068; font-size: 11px; font-weight: 400; text-align: center; margin-top: 14px; }
+/* "This is a request, not a confirmed order" helper text under the send button. */
+.request-disclaimer { color: #7A5068; font-size: 12px; font-weight: 400; text-align: center; line-height: 1.45; margin: 12px 0 0; }
+.done-card .done-lead { margin-bottom: 10px; }
+.done-reassure { color: #7A5068; font-size: 13px; font-weight: 400; line-height: 1.45; margin: 0 0 24px; }
 
 /* Logged-out signup modal on baker profiles */
 .bsm-overlay {
