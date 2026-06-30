@@ -31,6 +31,27 @@
     });
   }
 
+  // ---- Charter annual savings calculator ----
+  // savings = monthly sales * 3% (the 5% Charter vs 8% standard gap) * 12 months.
+  const salesInput = document.getElementById('charterSales');
+  const savingsOut = document.getElementById('charterSavings');
+  if (salesInput && savingsOut) {
+    const promptText = savingsOut.dataset.prompt || savingsOut.textContent;
+    salesInput.addEventListener('input', function () {
+      const monthly = parseFloat(salesInput.value);
+      if (!isFinite(monthly) || monthly <= 0) {
+        savingsOut.textContent = promptText;
+        savingsOut.classList.remove('is-active');
+        return;
+      }
+      const annual = Math.round(monthly * 0.03 * 12);
+      savingsOut.innerHTML = "As a Charter baker you'd save about <span class=\"join-save-amt\">$"
+        + annual.toLocaleString('en-US')
+        + "</span> per year compared to the standard 8% rate.";
+      savingsOut.classList.add('is-active');
+    });
+  }
+
   // ---- finish-signup form ----
   const form = document.getElementById('joinForm');
   if (!form) return;

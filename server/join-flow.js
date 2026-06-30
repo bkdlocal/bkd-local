@@ -1,5 +1,13 @@
 const { esc, layout } = require('./public-site');
 
+// Beta is capped at 50 founding spots. Update BETA_SPOTS_FILLED by hand as
+// bakers join; this is intentionally NOT wired to Airtable yet (Phase 2).
+// There are 21 real Beta bakers right now. A test record still in the base
+// will be deleted before launch, so it is deliberately not counted here.
+const BETA_SPOTS_TOTAL = 50;
+const BETA_SPOTS_FILLED = 21;
+const BETA_SPOTS_LEFT = BETA_SPOTS_TOTAL - BETA_SPOTS_FILLED; // 29 left
+
 // All 50 states + DC, [code, name]. Stored combined as "City, ST" in Airtable.
 const US_STATES = [
   ['AL','Alabama'],['AK','Alaska'],['AZ','Arizona'],['AR','Arkansas'],['CA','California'],
@@ -45,6 +53,18 @@ function joinStyles() {
   .join-feats li { padding: 7px 0 7px 26px; position: relative; font-size: 15px; }
   .join-feats li::before { content: ""; position: absolute; left: 0; top: 9px; width: 14px; height: 14px;
     border-radius: 50%; background: var(--pink); box-shadow: inset 0 0 0 4px var(--berry); }
+  .join-lead { font-size: 15px; line-height: 1.5; color: var(--ink); margin: 0 0 16px; }
+  .join-calc { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 18px; }
+  .join-calc label { display: block; font-size: 12px; font-weight: 500; color: var(--mauve); margin-bottom: 6px; }
+  .join-calc-input { display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; }
+  .join-calc-dollar { color: var(--mauve); font-size: 15px; }
+  .join-calc-input input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; font-size: 15px; color: var(--ink); }
+  .join-calc-result { font-size: 13px; line-height: 1.45; color: var(--mauve); margin: 10px 0 0; }
+  .join-calc-result.is-active { color: var(--berry-deep); }
+  .join-save-amt { color: #3DB87A; font-weight: 500; }
+  .join-spots { display: inline-block; align-self: flex-start; background: var(--pink); color: var(--berry-deep);
+    font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 999px; margin: 0 0 14px; }
+  .join-tools-note { text-align: center; font-size: 13px; line-height: 1.5; color: var(--mauve); margin: 20px auto 0; max-width: 520px; }
   .join-small { font-size: 12px; margin-top: 10px; text-align: center; }
   .join-foot { text-align: center; margin-top: 22px; }
   .join-finish .auth-card { margin-bottom: 16px; }
@@ -86,9 +106,18 @@ function renderJoin({ stripeReady, error }) {
       <section class="join-card join-card--featured">
         <span class="join-badge">Recommended</span>
         <h2>Charter</h2>
-        <div class="join-price">$97 <span>one-time</span></div>
+        <div class="join-price">$97 <span>one-time founding investment</span></div>
+        <p class="join-lead">Lock in a 5% fee for life. Every other baker pays 8%, so those three points stay in your pocket on every order, for as long as you bake with us.</p>
+        <div class="join-calc">
+          <label for="charterSales">Your average monthly sales</label>
+          <div class="join-calc-input">
+            <span class="join-calc-dollar">$</span>
+            <input id="charterSales" type="number" min="0" step="1" inputmode="numeric" placeholder="0">
+          </div>
+          <p class="join-calc-result" id="charterSavings" data-prompt="Enter your monthly sales to see what Charter saves you.">Enter your monthly sales to see what Charter saves you.</p>
+        </div>
         <ul class="join-feats">
-          <li>Lifetime 5% fee rate (Standard is 8%)</li>
+          <li>Magic Pricing Calculator and Bake Timer included</li>
           <li>Founding Baker badge on your profile</li>
           <li>Priority placement in the directory</li>
           <li>Quarterly strategy calls with Raina</li>
@@ -102,6 +131,7 @@ function renderJoin({ stripeReady, error }) {
         <h2>Beta</h2>
         <div class="join-price">Free <span>for 90 days</span></div>
         <div class="join-subprice">then 8% fee rate</div>
+        <p class="join-spots">${BETA_SPOTS_LEFT} of ${BETA_SPOTS_TOTAL} Beta spots left</p>
         <ul class="join-feats">
           <li>Full baker profile and dashboard</li>
           <li>Listed in the directory</li>
@@ -110,6 +140,7 @@ function renderJoin({ stripeReady, error }) {
         <button type="button" class="btn btn-outline btn-block" id="chooseBeta">Start free Beta</button>
       </section>
     </div>
+    <p class="join-tools-note">The Magic Pricing Calculator and Bake Timer are free for everyone through July 12. After that, they are included with Charter.</p>
     <p class="join-foot muted">Already a baker? <a href="/login">Log in</a>.</p>
   </div>
   ${joinStyles()}
