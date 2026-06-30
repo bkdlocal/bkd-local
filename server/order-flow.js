@@ -91,6 +91,10 @@ function renderOrderFlow({ baker, item, availableDates, serviceFee, viewer }) {
         <button type="button" class="btn btn-outline" data-act="to-2">Back</button>
         <button type="button" class="btn btn-primary" data-act="submit" id="sendBtn">Send request</button>
       </div>
+      <!-- Payment is NOT wired yet (pre Stripe Connect): /api/orders/request charges nothing,
+           so this copy stays neutral. When Stripe Connect lands, revisit this line AND the
+           .done-reassure line below to add accurate charge-timing (e.g. "you won't be charged
+           until the baker accepts"). -->
       <p class="request-disclaimer">This is a request, not a confirmed order. ${esc(baker.businessName)} will review and accept it before anything is finalized.</p>
       <p class="form-error" id="orderError" hidden></p>
     </section>
