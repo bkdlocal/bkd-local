@@ -152,8 +152,13 @@ function renderMiBasicsSection(state) {
         placeholder="No minimum" />
       <div class="mi-hint" style="margin-top:6px;">e.g. 2 if you require at least 2 dozen.</div>
 
-      <button type="button" class="pmb-custom-link" data-action="menuItem:priceCheck">
-        Want to know if you're actually making money on this? Enter your recipe to find out, now!
+      <button type="button" class="mi-price-magic-link" data-action="menuItem:priceCheck">
+        <span class="mi-price-magic-spark" aria-hidden="true">✦</span>
+        <span class="mi-price-magic-text">
+          <span class="mi-price-magic-title">Are you actually making money on this?</span>
+          <span class="mi-price-magic-sub">Enter your recipe in the Magic Pricing Calculator to find out</span>
+        </span>
+        <span class="mi-price-magic-arrow" aria-hidden="true">›</span>
       </button>
     </div>
   `;
