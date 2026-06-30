@@ -1578,25 +1578,75 @@ app.delete('/api/baker/supplies/:id', requireAuth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// A recipe is stored as a JSON blob on the Menu Items record ("Recipe (JSON)"
+// long text) plus a "Recipe Cost" currency field, so the calculator can reload
+// it later. Field names must match the Airtable columns exactly.
+function normalizeRecipe(menuItemId, payload) {
+  const p = payload || {};
+  return {
+    menuItemId,
+    store: String(p.store || 'walmart'),
+    listedPrice: Number(p.listedPrice) || 0,
+    totalCost: Number(p.totalCost) || 0,
+    batchSize: p.batchSize != null && p.batchSize !== '' ? Number(p.batchSize) : null,
+    batchUnit: p.batchUnit || null,
+    ingredients: Array.isArray(p.ingredients) ? p.ingredients.map(i => ({
+      catalogId: String(i.catalogId),
+      custom: !!i.custom,
+      quantity: Number(i.quantity) || 0,
+      unit: String(i.unit || '')
+    })) : [],
+    supplies: Array.isArray(p.supplies) ? p.supplies.map(s => ({
+      catalogId: String(s.catalogId),
+      quantity: Number(s.quantity) || 0
+    })) : []
+  };
+}
+
 app.get('/api/menu/:id/recipe', requireAuth, async (req, res, next) => {
   try {
-    await currentBaker(req);
+    const baker = await currentBaker(req);
     if (MODE === 'mock') {
       const recipe = mock.getRecipe(req.params.id);
       return res.json({ recipe });
     }
-    res.json({ recipe: null });
+    const rec = await airtable.findById('Menu Items', req.params.id);
+    if (!rec || normEmail(rec.fields['Baker Email']) !== baker.email) {
+      return res.json({ recipe: null });
+    }
+    const raw = rec.fields['Recipe (JSON)'];
+    let recipe = null;
+    if (raw) { try { recipe = JSON.parse(raw); } catch (_) { recipe = null; } }
+    res.json({ recipe });
   } catch (e) { next(e); }
 });
 
 app.put('/api/menu/:id/recipe', requireAuth, async (req, res, next) => {
   try {
-    await currentBaker(req);
+    const baker = await currentBaker(req);
     if (MODE === 'mock') {
       const recipe = mock.saveRecipe(req.params.id, req.body || {});
       return res.json({ ok: true, recipe });
     }
-    res.json({ ok: true, recipe: null });
+    const rec = await airtable.findById('Menu Items', req.params.id);
+    if (!rec || normEmail(rec.fields['Baker Email']) !== baker.email) {
+      return res.status(404).json({ error: 'Menu item not found.' });
+    }
+    const recipe = normalizeRecipe(req.params.id, req.body || {});
+    const fields = {
+      'Recipe (JSON)': JSON.stringify(recipe),
+      'Recipe Cost': recipe.totalCost
+    };
+    // The client asks the baker to confirm before the calculator's price
+    // overwrites the customer-facing Base Price; only apply it when confirmed.
+    if (req.body && req.body.applyPrice === true && recipe.listedPrice > 0) {
+      fields['Price'] = recipe.listedPrice;
+    }
+    // knownFields drops any column the baker hasn't added yet so the update
+    // never 422s; the recipe simply won't persist until the fields exist.
+    const safeFields = await airtable.knownFields('Menu Items', fields);
+    await airtable.update('Menu Items', req.params.id, safeFields);
+    res.json({ ok: true, recipe });
   } catch (e) { next(e); }
 });
 

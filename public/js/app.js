@@ -593,12 +593,19 @@ const Actions = {
   'pmb:saveRecipe': async ({ el }) => {
     const s = Router.state.priceMyBakes;
     if (!s || !s.itemId) {
-      alert('Open this from a menu item to link the recipe.');
+      alert('Open this from one of your saved menu items to attach the recipe and price. Save the item to your menu first, then tap its pricing link.');
       return;
     }
     const food = totalFoodCost(s);
     const supplies = totalSuppliesCost(s);
     const totalCost = food + supplies;
+    // Confirm before the listed price overwrites the customer-facing base price.
+    // Cancel still saves the recipe, just without touching the price.
+    const listed = Number(s.listedPrice) || 0;
+    let applyPrice = false;
+    if (listed > 0) {
+      applyPrice = confirm(`Update this item's listed price to ${fmt(listed)}? Tap Cancel to keep the current price and just save your recipe.`);
+    }
     el.disabled = true;
     const original = el.textContent;
     el.textContent = 'Saving…';
@@ -610,9 +617,10 @@ const Actions = {
         supplies: s.supplies,
         totalCost,
         batchSize: s.batchSize,
-        batchUnit: s.batchUnit
+        batchUnit: s.batchUnit,
+        applyPrice
       });
-      el.textContent = 'Saved ✓';
+      el.textContent = applyPrice ? 'Saved + priced ✓' : 'Saved ✓';
       setTimeout(() => { el.textContent = original; el.disabled = false; }, 1400);
     } catch (e) {
       alert(e.message);

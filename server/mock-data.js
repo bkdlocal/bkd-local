@@ -658,7 +658,8 @@ function saveRecipe(menuItemId, payload) {
   const item = menuItems.find(x => x.id === menuItemId);
   if (item) {
     item.recipeCost = recipe.totalCost;
-    if (recipe.listedPrice > 0) item.price = recipe.listedPrice;
+    // Only overwrite the base price when the baker confirmed it (applyPrice).
+    if (payload.applyPrice === true && recipe.listedPrice > 0) item.price = recipe.listedPrice;
     if (recipe.batchSize != null) item.batchSize = recipe.batchSize;
     if (recipe.batchUnit) item.batchUnit = recipe.batchUnit;
   }
