@@ -1983,7 +1983,7 @@ body {
   color: var(--white);
   border-color: var(--berry);
 }
-/* Custom ingredients are measured in "uses" — this is a plain unit label, not
+/* Custom ingredients are measured in "uses": this is a plain unit label, not
    a tappable control, so it must not look like the clickable unit pills. */
 .pmb-unit-fixed {
   padding: 5px 2px;
