@@ -83,4 +83,46 @@ async function retrieveCheckoutSession(id) {
   return request('GET', `/checkout/sessions/${encodeURIComponent(id)}`);
 }
 
-module.exports = { configured, createCheckoutSession, retrieveCheckoutSession, StripeError };
+// ---- Stripe Connect (Express) for baker payouts ------------------------------
+// We are the marketplace: bakers are Express connected accounts and Stripe runs
+// their KYC/onboarding. We request card_payments + transfers so either charge
+// model (destination or direct) works when payments are wired in Phase 2.
+async function createConnectedAccount({ email, businessName } = {}) {
+  return request('POST', '/accounts', {
+    type: 'express',
+    country: 'US',
+    email: email || undefined,
+    business_profile: businessName ? { name: businessName } : undefined,
+    capabilities: {
+      card_payments: { requested: true },
+      transfers: { requested: true }
+    }
+  });
+}
+
+// One-time onboarding link for an Express account. refresh_url is where Stripe
+// sends the baker if the link expires; return_url is where they land when done.
+async function createAccountLink({ account, refreshUrl, returnUrl }) {
+  return request('POST', '/account_links', {
+    account,
+    refresh_url: refreshUrl,
+    return_url: returnUrl,
+    type: 'account_onboarding'
+  });
+}
+
+// Full account object; we read details_submitted / payouts_enabled to decide
+// whether onboarding is complete.
+async function retrieveAccount(id) {
+  return request('GET', `/accounts/${encodeURIComponent(id)}`);
+}
+
+module.exports = {
+  configured,
+  createCheckoutSession,
+  retrieveCheckoutSession,
+  createConnectedAccount,
+  createAccountLink,
+  retrieveAccount,
+  StripeError
+};

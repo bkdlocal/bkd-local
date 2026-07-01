@@ -230,6 +230,7 @@ function bakerFromRecord(rec) {
     productTypes: f['Product Types'] || null,
     specialtyTags: f['Specialty Tags'] || null,
     acceptingOrders: f['Accepting Orders'] === true,
+    stripeAccountId: f['Stripe Account ID'] || null,
     faq: faqFromRecord(f)
   };
 }

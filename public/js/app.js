@@ -802,6 +802,22 @@ const Actions = {
     } catch (e) { alert(e.message); }
   },
 
+  'profile:connectPayouts': async ({ el }) => {
+    el.disabled = true;
+    const original = el.textContent;
+    el.textContent = 'Connecting...';
+    try {
+      await Api.createStripeAccount();
+      const { url } = await Api.getStripeOnboardingLink();
+      if (!url) throw new Error('Could not start bank connection. Please try again.');
+      window.location = url;
+    } catch (e) {
+      alert(e.message);
+      el.disabled = false;
+      el.textContent = original;
+    }
+  },
+
   'profile:resetOnboarding': async () => {
     if (!confirm('Clear all FAQ answers and start onboarding from scratch? (Mock mode only — useful for testing.)')) return;
     try {

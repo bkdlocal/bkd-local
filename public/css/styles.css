@@ -2642,6 +2642,33 @@ body {
 }
 .profile-save-btn:active { background: #A6406A; }
 
+.profile-payouts-hint {
+  font-size: 13px;
+  color: var(--mauve);
+  line-height: 1.5;
+  margin: 0 0 10px;
+}
+.profile-payouts-connected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--plum);
+}
+.profile-payouts-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--mint);
+  color: var(--white);
+  font-size: 13px;
+  line-height: 1;
+}
+
 .faq-section { padding: 14px 14px 6px; }
 
 .faq-row {

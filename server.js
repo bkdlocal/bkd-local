@@ -2601,6 +2601,113 @@ app.get('/api/customer/unread-count', requireCustomerAuth, async (req, res, next
   } catch (e) { next(e); }
 });
 
+// ---- Stripe Connect (Express) for baker payouts -----------------------------
+// Phase 2 infrastructure only: create/onboard connected accounts. No charge
+// flow, webhooks, or customer-facing payment UI here (those are separate).
+
+// Self-contained brand-styled landing page shown after Stripe onboarding.
+function renderStripeConnectReturn(done) {
+  const heading = done ? 'Payouts connected' : 'Almost there';
+  const body = done
+    ? 'Your bank account is connected and ready. Once payments turn on, your earnings will land here automatically.'
+    : 'Thanks for starting your bank setup. Stripe is still finishing your verification. This can take a few minutes, and we will let you know the moment payouts are ready.';
+  const mark = done ? '&#10003;' : '&#8226;';
+  return `<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${done ? 'Payouts connected' : 'Bank setup in progress'} · Bkd Local</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root { --berry: #C2557E; --plum: #2C1A24; --blush: #FDF6F9; --mauve: #7A5068; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--blush); color: var(--plum); font-family: 'Poppins', system-ui, sans-serif; font-weight: 400; padding: 24px; }
+  .sc-card { background: #fff; border-radius: 22px; box-shadow: 0 10px 30px rgba(44,26,36,0.10);
+    max-width: 420px; width: 100%; padding: 36px 28px; text-align: center; }
+  .sc-mark { width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 18px; display: flex; align-items: center;
+    justify-content: center; font-size: 26px; color: #fff; background: ${done ? '#3DB87A' : 'var(--berry)'}; }
+  .sc-card h1 { font-size: 22px; font-weight: 500; margin: 0 0 10px; color: var(--plum); }
+  .sc-card p { font-size: 15px; line-height: 1.55; color: var(--mauve); margin: 0 0 24px; }
+  .sc-btn { display: inline-block; background: var(--berry); color: #fff; text-decoration: none;
+    font-weight: 500; font-size: 15px; padding: 12px 24px; border-radius: 999px; }
+</style>
+</head><body>
+  <div class="sc-card">
+    <div class="sc-mark" aria-hidden="true">${mark}</div>
+    <h1>${heading}</h1>
+    <p>${body}</p>
+    <a class="sc-btn" href="/app/profile">Back to my profile</a>
+  </div>
+</body></html>`;
+}
+
+
+// Create an Express connected account for the logged-in baker and save its id
+// to the "Stripe Account ID" field on their Baker Profiles record. Idempotent.
+app.post('/api/stripe/connect/create-account', requireAuth, async (req, res, next) => {
+  try {
+    const baker = await currentBaker(req);
+    if (baker.stripeAccountId) {
+      return res.json({ accountId: baker.stripeAccountId, alreadyConnected: true });
+    }
+    if (MODE === 'mock') {
+      const acct = 'acct_demo_' + Date.now().toString(36);
+      mock.baker.stripeAccountId = acct;
+      return res.json({ accountId: acct });
+    }
+    if (!stripeClient.configured()) return res.status(503).json({ error: 'Payouts are not available yet.' });
+    const account = await stripeClient.createConnectedAccount({
+      email: baker.email,
+      businessName: baker.businessName
+    });
+    await airtable.update('Baker Profiles', baker.id, { 'Stripe Account ID': account.id });
+    res.json({ accountId: account.id });
+  } catch (e) { next(e); }
+});
+
+// Generate a Stripe onboarding link for the baker's connected account. Both
+// refresh and return URLs land on /app/stripe-connect-return (the status page).
+app.post('/api/stripe/connect/onboarding-link', requireAuth, async (req, res, next) => {
+  try {
+    const baker = await currentBaker(req);
+    const accountId = baker.stripeAccountId || String(req.body?.accountId || '').trim();
+    if (!accountId) return res.status(400).json({ error: 'Connect a bank account first.' });
+    const base = process.env.PUBLIC_BASE_URL || `${req.protocol}://${req.get('host')}`;
+    const returnUrl = `${base}/app/stripe-connect-return`;
+    if (MODE === 'mock') return res.json({ url: returnUrl });
+    if (!stripeClient.configured()) return res.status(503).json({ error: 'Payouts are not available yet.' });
+    const link = await stripeClient.createAccountLink({
+      account: accountId,
+      refreshUrl: returnUrl,
+      returnUrl
+    });
+    res.json({ url: link.url });
+  } catch (e) { next(e); }
+});
+
+// Landing page after Stripe onboarding. Checks the account status via Stripe
+// and shows a success or still-pending message, then links back to the profile.
+app.get('/app/stripe-connect-return', async (req, res, next) => {
+  try {
+    if (!req.user) return res.redirect('/login');
+    const baker = await currentBaker(req);
+    let done = false;
+    if (baker.stripeAccountId) {
+      if (MODE === 'mock') {
+        done = true;
+      } else if (stripeClient.configured()) {
+        try {
+          const acct = await stripeClient.retrieveAccount(baker.stripeAccountId);
+          done = !!(acct.details_submitted && acct.payouts_enabled);
+        } catch (_) { done = false; }
+      }
+    }
+    res.type('html').send(renderStripeConnectReturn(done));
+  } catch (e) { next(e); }
+});
+
 // Baker-facing SPA now lives under /app (client-side routed). Served from the
 // cache-busted in-memory copy so deploys reach installed PWAs immediately.
 app.get(['/app', '/app/*'], (req, res) => {

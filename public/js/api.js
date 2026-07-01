@@ -77,6 +77,8 @@ const Api = {
   getBaker()   { return this._get('/api/baker'); },
   updateBaker(patch) { return this._patch('/api/baker', patch); },
   resetOnboarding()  { return this._post('/api/baker/reset-onboarding'); },
+  createStripeAccount()      { return this._post('/api/stripe/connect/create-account'); },
+  getStripeOnboardingLink()  { return this._post('/api/stripe/connect/onboarding-link'); },
   getOrders()  { return this._get('/api/orders'); },
   getOrder(id) { return this._get(`/api/orders/${id}`); },
 

@@ -11,6 +11,7 @@ let baker = {
   city: 'Brooklyn, NY',
   tier: 'Charter',
   feeRate: 0.05,
+  stripeAccountId: null,
   pickupLocation: '482 Greene Ave, Brooklyn, NY — front porch (please knock)',
   profileStatus: 'Active',
   badge: 'Verified',

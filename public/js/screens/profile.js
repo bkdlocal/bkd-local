@@ -88,6 +88,7 @@ async function renderProfile() {
         ${renderLocationSection(baker, state)}
         ${renderVoiceSection(baker, state)}
         ${renderFaqSections(baker, state)}
+        ${renderPayoutsSection(baker)}
         ${renderProfileFooter(baker, isLive, canGoLive)}
       </div>
 
@@ -331,6 +332,21 @@ function renderFaqRow(baker, state, item) {
       </div>
       <div class="faq-row-hint">${escapeHtml(item.hint)}</div>
     </button>
+  `;
+}
+
+function renderPayoutsSection(baker) {
+  const connected = hasValue(baker.stripeAccountId);
+  return `
+    <div class="profile-section">
+      <div class="profile-section-head">
+        <div class="profile-section-title">Payouts</div>
+      </div>
+      ${connected
+        ? `<div class="profile-payouts-connected"><span class="profile-payouts-check" aria-hidden="true">✓</span> Payouts connected</div>`
+        : `<div class="profile-payouts-hint">Connect your bank account so your earnings can reach you. Stripe handles the secure setup.</div>
+           <button type="button" class="profile-save-btn" data-action="profile:connectPayouts">Connect your bank account</button>`}
+    </div>
   `;
 }
 
