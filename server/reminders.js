@@ -18,7 +18,7 @@ function firstName(full) {
   return String(full || '').trim().split(/\s+/)[0] || 'there';
 }
 
-// Calendar date + hour in America/Chicago (West TN launch region), so "tomorrow"
+// Calendar date + hour in Central time (America/Chicago), so "tomorrow"
 // and the 8am day-of gate line up with the baker's local day.
 function centralNow() {
   const parts = new Intl.DateTimeFormat('en-US', {

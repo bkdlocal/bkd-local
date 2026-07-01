@@ -1,5 +1,5 @@
 const { withAssetVersion } = require('./build');
-const REGION = 'West Tennessee';
+const REGION = 'Tennessee';
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December'];
 
