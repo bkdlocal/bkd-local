@@ -78,11 +78,25 @@ function ratingLine(baker) {
   return `<div class="rating-line">★ ${esc(Number(baker.rating).toFixed(1))} <span class="rating-count">(${n} review${n === 1 ? '' : 's'})</span></div>`;
 }
 
-function bakerCard(baker) {
+// Heart toggle for logged-in customers. Filled when this baker is already in
+// the customer's Favorite Bakers. Rendered as a span (valid inside the card's
+// anchor) with role=button. Hidden for guests, since favoriting needs an account.
+function favoriteButton(bakerId, viewer, opts = {}) {
+  if (!viewer || !viewer.customer) return '';
+  const isFav = Array.isArray(viewer.favoriteIds) && viewer.favoriteIds.includes(bakerId);
+  const label = isFav ? 'Remove from favorites' : 'Save to favorites';
+  const cls = opts.inline ? 'fav-btn fav-btn-inline' : 'fav-btn';
+  return `<span class="${cls}" role="button" tabindex="0" data-fav-toggle data-baker-id="${esc(bakerId)}" aria-pressed="${isFav ? 'true' : 'false'}" aria-label="${label}" title="${label}">
+    <svg class="fav-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.7 3.9 12.6a4.9 4.9 0 0 1 0-6.9 4.9 4.9 0 0 1 6.9 0l1.2 1.2 1.2-1.2a4.9 4.9 0 0 1 6.9 0 4.9 4.9 0 0 1 0 6.9z"/></svg>
+  </span>`;
+}
+
+function bakerCard(baker, viewer) {
   const taking = baker.acceptingOrders
     ? `<span class="taking"><span class="dot"></span>Taking orders</span>`
     : `<span class="taking taking-off">Currently paused</span>`;
   return `<a class="baker-card" href="/bakers/${esc(baker.id)}">
+    ${favoriteButton(baker.id, viewer)}
     ${cardPhoto(baker)}
     <div class="card-body">
       <h3>${esc(baker.businessName)}</h3>
@@ -236,6 +250,7 @@ ${footer()}
 ${custBottomNav(viewer)}
 <script src="/js/nav-badge.js"></script>
 <script src="/js/a2hs-banner.js"></script>
+${viewer && viewer.customer ? '<script src="/js/favorites.js"></script>' : ''}
 </body>
 </html>`);
 }
@@ -251,7 +266,7 @@ function renderHome({ bakers, viewer }) {
       <a class="see-all" href="/bakers">See all →</a>
     </div>
     ${featured.length
-      ? `<div class="baker-grid">${featured.map(bakerCard).join('')}</div>`
+      ? `<div class="baker-grid">${featured.map(b => bakerCard(b, viewer)).join('')}</div>`
       : `<p class="empty">Our bakers are getting set up. Check back very soon.</p>`}
   </section>
   <section class="section how" id="how">
@@ -319,7 +334,7 @@ function renderDirectory({ bakers, cities, types, filters, total, viewer }) {
   </section>
   <section class="section">
     ${bakers.length
-      ? `<div class="baker-grid">${bakers.map(bakerCard).join('')}</div>`
+      ? `<div class="baker-grid">${bakers.map(b => bakerCard(b, viewer)).join('')}</div>`
       : `<p class="empty">${emptyMsg}</p>`}
   </section>`;
   return layout({
@@ -442,7 +457,10 @@ function renderProfile({ baker, menu, reviews, viewer }) {
     <div class="profile-banner${baker.photo ? '' : ' profile-banner-empty'}"${bannerStyle}></div>
     <div class="profile-head">
       <div class="profile-headline">
-        <h1>${esc(baker.businessName)}</h1>
+        <div class="profile-title-row">
+          <h1>${esc(baker.businessName)}</h1>
+          ${favoriteButton(baker.id, viewer, { inline: true })}
+        </div>
         <div class="profile-badges">${badges(baker)}</div>
       </div>
       <div class="profile-location">${esc(loc)}</div>
@@ -505,4 +523,4 @@ function renderNotFound() {
   });
 }
 
-module.exports = { renderHome, renderDirectory, renderProfile, renderFaqPage, renderNotFound, esc, layout, minimumLabel };
+module.exports = { renderHome, renderDirectory, renderProfile, renderFaqPage, renderNotFound, esc, layout, minimumLabel, bakerCard };

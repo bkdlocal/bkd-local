@@ -1359,6 +1359,50 @@ app.get('/api/customer/verify', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ---- Favorite bakers (customer, matched by email) ---------------------------
+// List the logged-in customer's favorite bakers (resolved to public bakers).
+app.get('/api/customer/favorites', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const rec = await customers.findByEmail(req.customer.email);
+    if (!rec) return res.status(404).json({ error: 'Account not found.' });
+    const favorites = await resolveFavoriteBakers(favoriteBakerIdsFromRec(rec));
+    res.json({ favorites, favoriteIds: favorites.map(b => b.id) });
+  } catch (e) { next(e); }
+});
+
+// Add a baker to the customer's favorites. Idempotent.
+app.post('/api/customer/favorites', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const bakerId = String(req.body?.bakerId || '').trim();
+    if (!bakerId) return res.status(400).json({ error: 'A baker is required.' });
+    const baker = await loadPublicBakerById(bakerId);
+    if (!baker) return res.status(404).json({ error: 'Baker not found.' });
+    const rec = await customers.findByEmail(req.customer.email);
+    if (!rec) return res.status(404).json({ error: 'Account not found.' });
+    const ids = favoriteBakerIdsFromRec(rec);
+    if (!ids.includes(bakerId)) {
+      ids.push(bakerId);
+      await customers.update(rec.id, { 'Favorite Bakers': ids });
+    }
+    res.json({ ok: true, favoriteIds: ids });
+  } catch (e) { next(e); }
+});
+
+// Remove a baker from the customer's favorites.
+app.delete('/api/customer/favorites/:bakerId', requireCustomerAuth, async (req, res, next) => {
+  try {
+    const bakerId = String(req.params.bakerId || '').trim();
+    const rec = await customers.findByEmail(req.customer.email);
+    if (!rec) return res.status(404).json({ error: 'Account not found.' });
+    const ids = favoriteBakerIdsFromRec(rec);
+    const next_ = ids.filter(id => id !== bakerId);
+    if (next_.length !== ids.length) {
+      await customers.update(rec.id, { 'Favorite Bakers': next_ });
+    }
+    res.json({ ok: true, favoriteIds: next_ });
+  } catch (e) { next(e); }
+});
+
 app.post('/api/customer/resend-verification', async (req, res, next) => {
   try {
     const email = normEmail(req.body?.email);
@@ -1877,12 +1921,32 @@ function bakerAvailableOnDates(baker, dates, idx) {
 }
 
 // Logged-in customers get a Messages/Orders/Profile top nav (with unread badge).
+// Baker record IDs a customer has favorited (the "Favorite Bakers" linked field).
+function favoriteBakerIdsFromRec(rec) {
+  const v = rec && rec.fields && rec.fields['Favorite Bakers'];
+  return Array.isArray(v) ? v.slice() : [];
+}
+
+// Resolve favorite baker IDs to public baker objects, dropping any that are no
+// longer live/available.
+async function resolveFavoriteBakers(ids) {
+  const bakers = await Promise.all((ids || []).map(id => loadPublicBakerById(id).catch(() => null)));
+  return bakers.filter(Boolean);
+}
+
 async function viewerFor(req) {
   if (!req.customer) return null;
+  let unread = 0;
+  let favoriteIds = [];
   try {
     const threads = await customerThreads(req.customer.email);
-    return { customer: true, unread: threads.filter(t => t.unread).length };
-  } catch (_) { return { customer: true, unread: 0 }; }
+    unread = threads.filter(t => t.unread).length;
+  } catch (_) {}
+  try {
+    const rec = await customers.findByEmail(req.customer.email);
+    favoriteIds = favoriteBakerIdsFromRec(rec);
+  } catch (_) {}
+  return { customer: true, unread, favoriteIds };
 }
 
 app.get('/', async (req, res, next) => {
@@ -2224,7 +2288,8 @@ app.get('/customer/profile', async (req, res, next) => {
     const rec = await customers.findByEmail(req.customer.email);
     if (!rec) return res.redirect('/login');
     const orders = await enrichOrdersWithBaker(await loadCustomerOrders(req.customer.email));
-    res.type('html').send(customerSite.renderCustomerProfile({ customer: customerPublic(rec), orders, viewer: await viewerFor(req) }));
+    const favorites = await resolveFavoriteBakers(favoriteBakerIdsFromRec(rec));
+    res.type('html').send(customerSite.renderCustomerProfile({ customer: customerPublic(rec), orders, favorites, viewer: await viewerFor(req) }));
   } catch (e) { next(e); }
 });
 

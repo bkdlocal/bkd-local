@@ -1,4 +1,4 @@
-const { esc, layout } = require('./public-site');
+const { esc, layout, bakerCard } = require('./public-site');
 const ratings = require('./ratings');
 
 const OCCASION_CHOICES = ['Birthday', 'Wedding', 'Baby Shower', 'Holiday', 'Corporate', 'Graduation', 'Just Because', 'Other'];
@@ -84,7 +84,7 @@ function compactOrderCard(o) {
     </a>`;
 }
 
-function renderCustomerProfile({ customer, orders, viewer }) {
+function renderCustomerProfile({ customer, orders, favorites, viewer }) {
   const last3 = (orders || []).slice(0, 3);
   const count = Number(customer.ratingCount) || 0;
   const ratingBlock = count > 0
@@ -121,6 +121,13 @@ function renderCustomerProfile({ customer, orders, viewer }) {
       <h2>Your baker rating</h2>
       ${ratingBlock}
       <p class="muted">Bakers can see this when they review your order requests. It is private and never shown on your public profile or the directory.</p>
+    </section>
+
+    <section class="profile-section" data-fav-list>
+      <div class="section-head"><h2>Favorite bakers</h2></div>
+      ${(favorites && favorites.length)
+        ? `<div class="baker-grid">${favorites.map(b => bakerCard(b, viewer)).join('')}</div>`
+        : '<p class="muted" data-fav-empty>You have not favorited any bakers yet. Tap the heart on any baker to save them here. <a href="/bakers">Browse bakers</a>.</p>'}
     </section>
 
     <section class="profile-section">
