@@ -538,8 +538,21 @@ app.get('/api/auth/me', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// The Magic Pricing Calculator and Bake Timer become Charter-only on
+// July 12, 2026. Before that date every baker keeps access regardless of tier;
+// on and after it, any baker whose Tier is not "Charter" (Beta, Standard, or
+// unset) is locked out. Computed server-side so the cutover is automatic and
+// not dependent on the client clock.
+const MAGIC_TOOLS_LOCK_DATE = new Date('2026-07-12T00:00:00');
+function isMagicToolsLocked(baker) {
+  return new Date() >= MAGIC_TOOLS_LOCK_DATE && (baker && baker.tier) !== 'Charter';
+}
+
 app.get('/api/baker', requireAuth, async (req, res, next) => {
-  try { res.json(await currentBaker(req)); } catch (e) { next(e); }
+  try {
+    const baker = await currentBaker(req);
+    res.json({ ...baker, magicToolsLocked: isMagicToolsLocked(baker) });
+  } catch (e) { next(e); }
 });
 
 // Normalize a multiple-select value (string "a, b" or array) to an array of

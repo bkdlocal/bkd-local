@@ -109,6 +109,11 @@ async function renderPriceMyBakes(state = {}) {
   const baker = await Api.getBaker();
   PMB.bakerCache = baker;
 
+  // Charter-only after July 12, 2026 (server decides via baker.magicToolsLocked).
+  // Non-Charter bakers see a soft upsell in place of the tools; the nav entry
+  // and this screen stay reachable, we just swap the content.
+  if (baker && baker.magicToolsLocked) return renderPmbLocked();
+
   if (!state.initialized) {
     if (savedRecipe) {
       state.store = savedRecipe.store || 'walmart';
@@ -158,6 +163,32 @@ async function renderPriceMyBakes(state = {}) {
         ${renderPmbSuppliesSection(state)}
         ${renderPmbSummaryCard(state, baker, menuItem)}
         ${menuItem ? renderPmbPerUnitCard(state, baker) : ''}
+      </div>
+    </div>
+  `;
+}
+
+// Soft upsell shown in place of the tools once they are Charter-only and the
+// baker is not on Charter. Keeps the header and back button; swaps the content.
+function renderPmbLocked() {
+  return `
+    <div class="screen">
+      ${renderLogoBar()}
+      <div class="pmb-magic-header">
+        <div class="pmb-magic-row">
+          <button type="button" class="pmb-back" data-action="nav:back" aria-label="Back">‹</button>
+          <div class="pmb-magic-headtext">
+            <div class="pmb-eyebrow">Magic tools</div>
+            <div class="pmb-title">Magic Pricing Calculator</div>
+          </div>
+        </div>
+      </div>
+      <div class="scroll-content pmb-scroll">
+        <div class="pmb-lock-card">
+          <div class="pmb-lock-title">This tool is available to Charter members.</div>
+          <p class="pmb-lock-body">Magic tools are included with a Charter membership. Charter bakers keep 5% for life and get full access to the Pricing Calculator and Bake Timer.</p>
+          <a class="pmb-lock-cta" href="/join">Learn about Charter</a>
+        </div>
       </div>
     </div>
   `;

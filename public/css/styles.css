@@ -171,6 +171,41 @@ body {
 }
 
 /* Bake Timer card — same dark jewel treatment as the header + profit summary */
+.pmb-lock-card {
+  background: var(--white);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 30px 22px;
+  text-align: center;
+  margin-top: 8px;
+  box-shadow: 0 4px 18px rgba(120, 80, 110, 0.08);
+}
+.pmb-lock-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--plum);
+  margin-bottom: 10px;
+}
+.pmb-lock-body {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--mauve);
+  line-height: 1.55;
+  margin: 0 auto 22px;
+  max-width: 340px;
+}
+.pmb-lock-cta {
+  display: inline-block;
+  background: var(--berry);
+  color: var(--white);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 14px;
+  padding: 12px 26px;
+  border-radius: 999px;
+}
+.pmb-lock-cta:active { background: #A6406A; }
+
 .pmb-timer-card {
   position: relative; overflow: hidden;
   margin: 0 0 24px !important;
