@@ -1,19 +1,19 @@
 (function () {
-  // Heart toggle for favorite bakers. Optimistic UI, then persist to the server;
-  // revert on failure. Works on baker cards (inside an anchor) and standalone.
+  var params = new URLSearchParams(window.location.search);
+
+  // ---- Logged-in customers: toggle the favorite directly (optimistic) --------
   async function toggle(btn) {
     if (btn.dataset.busy === '1') return;
-    const bakerId = btn.dataset.bakerId;
+    var bakerId = btn.dataset.bakerId;
     if (!bakerId) return;
-    const wasFav = btn.getAttribute('aria-pressed') === 'true';
-    const nowFav = !wasFav;
+    var wasFav = btn.getAttribute('aria-pressed') === 'true';
+    var nowFav = !wasFav;
 
-    // Optimistic update.
     btn.dataset.busy = '1';
-    setState(btn, nowFav);
+    setState(btn, nowFav); // optimistic
 
     try {
-      let res;
+      var res;
       if (nowFav) {
         res = await fetch('/api/customer/favorites', {
           method: 'POST',
@@ -25,7 +25,6 @@
       }
       if (!res.ok) throw new Error('request failed');
 
-      // On the Favorites list, removing a baker drops its card.
       if (!nowFav) {
         var list = btn.closest('[data-fav-list]');
         if (list) {
@@ -40,6 +39,54 @@
     } finally {
       btn.dataset.busy = '';
     }
+  }
+
+  // ---- Guests: route into signup/login framed around saving this baker -------
+  function guestIntent(btn) {
+    var bakerId = btn.dataset.bakerId;
+    if (!bakerId) return;
+    var bakerName = btn.dataset.bakerName || 'this baker';
+    // On this baker's own profile the signup modal is present: open it reframed.
+    var modal = document.getElementById('bakerSignupModal');
+    if (modal && modal.getAttribute('data-baker-id') === bakerId) {
+      document.dispatchEvent(new CustomEvent('bkd:fav-signup', { detail: { bakerId: bakerId, bakerName: bakerName } }));
+      return;
+    }
+    // From a card elsewhere: carry the intent to that baker's profile.
+    window.location = '/bakers/' + encodeURIComponent(bakerId) + '?fav=1';
+  }
+
+  // ---- Single completion path after auth: /bakers/<id>?fav=1 -----------------
+  async function completePending() {
+    if (params.get('fav') !== '1') return;
+    var loggedInHeart = document.querySelector('[data-fav-toggle][data-baker-id]');
+    if (loggedInHeart) {
+      // Authenticated now: save the baker they intended, then reflect it.
+      try {
+        var res = await fetch('/api/customer/favorites', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bakerId: loggedInHeart.dataset.bakerId })
+        });
+        if (res.ok) setState(loggedInHeart, true);
+      } catch (e) {}
+      stripFavParam();
+      return;
+    }
+    // Still a guest (arrived from a card link): open the reframed signup modal.
+    var guestHeart = document.querySelector('[data-fav-guest][data-baker-id]');
+    var modal = document.getElementById('bakerSignupModal');
+    if (guestHeart && modal && modal.getAttribute('data-baker-id') === guestHeart.dataset.bakerId) {
+      document.dispatchEvent(new CustomEvent('bkd:fav-signup', {
+        detail: { bakerId: guestHeart.dataset.bakerId, bakerName: guestHeart.dataset.bakerName || 'this baker' }
+      }));
+    }
+  }
+
+  function stripFavParam() {
+    params.delete('fav');
+    var qs = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (qs ? '?' + qs : '') + window.location.hash);
   }
 
   function setState(btn, fav) {
@@ -62,21 +109,30 @@
     }
   }
 
+  function handle(target) {
+    var toggleBtn = target.closest('[data-fav-toggle]');
+    if (toggleBtn) { toggle(toggleBtn); return true; }
+    var guestBtn = target.closest('[data-fav-guest]');
+    if (guestBtn) { guestIntent(guestBtn); return true; }
+    return false;
+  }
+
   document.addEventListener('click', function (e) {
-    var btn = e.target.closest('[data-fav-toggle]');
-    if (!btn) return;
-    // Do not follow the card's link or bubble to it.
+    var el = e.target.closest('[data-fav-toggle], [data-fav-guest]');
+    if (!el) return;
     e.preventDefault();
     e.stopPropagation();
-    toggle(btn);
+    handle(e.target);
   });
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
-    var btn = e.target.closest('[data-fav-toggle]');
-    if (!btn) return;
+    var el = e.target.closest('[data-fav-toggle], [data-fav-guest]');
+    if (!el) return;
     e.preventDefault();
     e.stopPropagation();
-    toggle(btn);
+    handle(e.target);
   });
+
+  completePending();
 })();

@@ -78,15 +78,19 @@ function ratingLine(baker) {
   return `<div class="rating-line">★ ${esc(Number(baker.rating).toFixed(1))} <span class="rating-count">(${n} review${n === 1 ? '' : 's'})</span></div>`;
 }
 
-// Heart toggle for logged-in customers. Filled when this baker is already in
-// the customer's Favorite Bakers. Rendered as a span (valid inside the card's
-// anchor) with role=button. Hidden for guests, since favoriting needs an account.
+// Heart toggle shown to everyone. Logged-in customers (data-fav-toggle) toggle
+// their Favorite Bakers directly; guests (data-fav-guest) are routed into signup
+// or login framed around saving this baker, then the favorite is completed after
+// they are in. Rendered as a span (valid inside the card's anchor) with
+// role=button. Same Berry Rose filled / outline styling for both.
 function favoriteButton(bakerId, viewer, opts = {}) {
-  if (!viewer || !viewer.customer) return '';
-  const isFav = Array.isArray(viewer.favoriteIds) && viewer.favoriteIds.includes(bakerId);
+  const isCustomer = !!(viewer && viewer.customer);
+  const isFav = isCustomer && Array.isArray(viewer.favoriteIds) && viewer.favoriteIds.includes(bakerId);
   const label = isFav ? 'Remove from favorites' : 'Save to favorites';
   const cls = opts.inline ? 'fav-btn fav-btn-inline' : 'fav-btn';
-  return `<span class="${cls}" role="button" tabindex="0" data-fav-toggle data-baker-id="${esc(bakerId)}" aria-pressed="${isFav ? 'true' : 'false'}" aria-label="${label}" title="${label}">
+  const modeAttr = isCustomer ? 'data-fav-toggle' : 'data-fav-guest';
+  const nameAttr = opts.bakerName ? ` data-baker-name="${esc(opts.bakerName)}"` : '';
+  return `<span class="${cls}" role="button" tabindex="0" ${modeAttr} data-baker-id="${esc(bakerId)}"${nameAttr} aria-pressed="${isFav ? 'true' : 'false'}" aria-label="${label}" title="${label}">
     <svg class="fav-heart" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.7 3.9 12.6a4.9 4.9 0 0 1 0-6.9 4.9 4.9 0 0 1 6.9 0l1.2 1.2 1.2-1.2a4.9 4.9 0 0 1 6.9 0 4.9 4.9 0 0 1 0 6.9z"/></svg>
   </span>`;
 }
@@ -96,7 +100,7 @@ function bakerCard(baker, viewer) {
     ? `<span class="taking"><span class="dot"></span>Taking orders</span>`
     : `<span class="taking taking-off">Currently paused</span>`;
   return `<a class="baker-card" href="/bakers/${esc(baker.id)}">
-    ${favoriteButton(baker.id, viewer)}
+    ${favoriteButton(baker.id, viewer, { bakerName: baker.businessName })}
     ${cardPhoto(baker)}
     <div class="card-body">
       <h3>${esc(baker.businessName)}</h3>
@@ -250,7 +254,7 @@ ${footer()}
 ${custBottomNav(viewer)}
 <script src="/js/nav-badge.js"></script>
 <script src="/js/a2hs-banner.js"></script>
-${viewer && viewer.customer ? '<script src="/js/favorites.js"></script>' : ''}
+<script src="/js/favorites.js"></script>
 </body>
 </html>`);
 }
@@ -459,7 +463,7 @@ function renderProfile({ baker, menu, reviews, viewer }) {
       <div class="profile-headline">
         <div class="profile-title-row">
           <h1>${esc(baker.businessName)}</h1>
-          ${favoriteButton(baker.id, viewer, { inline: true })}
+          ${favoriteButton(baker.id, viewer, { inline: true, bakerName: baker.businessName })}
         </div>
         <div class="profile-badges">${badges(baker)}</div>
       </div>

@@ -9,13 +9,35 @@
   const ref = new URLSearchParams(window.location.search).get('ref') || '';
   const form = document.getElementById('bsmForm');
   const err = document.getElementById('bsmError');
+  const titleEl = modal.querySelector('.bsm-title');
+  const subEl = modal.querySelector('.bsm-sub');
+  const defaultTitle = titleEl ? titleEl.textContent : '';
+  const defaultSub = subEl ? subEl.textContent : '';
   let targetHref = '/customer/orders';
+
+  function setCopy(title, sub) {
+    if (titleEl && title != null) titleEl.textContent = title;
+    if (subEl && sub != null) subEl.textContent = sub;
+  }
 
   function open(href) {
     if (href) targetHref = href;
     modal.hidden = false;
     document.body.style.overflow = 'hidden';
   }
+
+  // Opened from a favorite-heart tap: reframe the copy around saving this baker
+  // and complete the favorite after signup/login via /bakers/<id>?fav=1.
+  document.addEventListener('bkd:fav-signup', function (e) {
+    var d = (e && e.detail) || {};
+    var id = d.bakerId || bakerId;
+    var name = d.bakerName || 'this baker';
+    setCopy(
+      'Create a free account to save ' + name + ' to your favorites',
+      'It only takes a minute, and we will save them to your favorites as soon as you are in.'
+    );
+    open('/bakers/' + encodeURIComponent(id) + '?fav=1');
+  });
   function close() {
     modal.hidden = true;
     document.body.style.overflow = '';
@@ -23,7 +45,7 @@
 
   document.addEventListener('click', function (e) {
     const link = e.target.closest('a[href^="/order/new"]');
-    if (link) { e.preventDefault(); open(link.getAttribute('href')); return; }
+    if (link) { e.preventDefault(); setCopy(defaultTitle, defaultSub); open(link.getAttribute('href')); return; }
     if (e.target.closest('[data-bsm-close]')) { close(); return; }
     if (e.target === modal) { close(); return; }
     const signin = e.target.closest('[data-bsm-signin]');
